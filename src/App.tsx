@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { NotePlayer } from "./audio/NotePlayer";
 import { Keyboard } from "./display/Keyboard";
+import { DefaultNoteSelector } from "./display/DefaultNoteSelector";
 import type { NoteName } from "./shared/noteFrequencies";
 import { NOTE_NAMES } from "./shared/noteFrequencies";
 import "./App.css";
 
 function App() {
 	const [currentNote, setCurrentNote] = useState<NoteName | null>(null);
+	const [defaultNote, setDefaultNote] = useState<NoteName>("C4");
 
 	const handleNotePlay = (note: NoteName) => {
 		// 常に新しい音に即座に切り替え（useAudioContextで自動的に前の音は停止される）
@@ -59,10 +61,16 @@ function App() {
 
 				<Keyboard currentNote={currentNote} />
 
+				<DefaultNoteSelector
+					defaultNote={defaultNote}
+					onDefaultNoteChange={setDefaultNote}
+				/>
+
 				<NotePlayer
 					currentNote={currentNote}
 					onNotePlay={handleNotePlay}
 					onNoteStop={handleNoteStop}
+					defaultNote={defaultNote}
 				/>
 			</div>
 		</div>

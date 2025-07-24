@@ -16,12 +16,14 @@ interface NotePlayerProps {
 	currentNote?: NoteName | null;
 	onNotePlay?: (note: NoteName) => void;
 	onNoteStop?: (note?: NoteName) => void;
+	defaultNote?: NoteName;
 }
 
 export const NotePlayer: React.FC<NotePlayerProps> = ({
 	currentNote,
 	onNotePlay,
 	onNoteStop,
+	defaultNote,
 }) => {
 	const { playNote, stopNote, isSupported, error } = useAudioContext();
 
@@ -37,6 +39,7 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 	const config: ScaleDecisionConfig = {
 		voiceKeys: getVoiceKeys(),
 		priorityStrategy: "last-pressed",
+		defaultNote: defaultNote,
 	};
 
 	// 音階決定と再生処理を行う関数
@@ -136,6 +139,7 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 		keyboardState,
 		audioState,
 		config,
+		defaultNote,
 	]);
 
 	if (!isSupported() || error?.type === "WEB_AUDIO_API_NOT_SUPPORTED") {

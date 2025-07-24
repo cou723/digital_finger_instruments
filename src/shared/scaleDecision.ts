@@ -31,6 +31,8 @@ export interface ScaleDecisionConfig {
 	voiceKeys: readonly string[];
 	/** 優先戦略 */
 	priorityStrategy?: "last-pressed" | "voice-key-priority";
+	/** 0000時のデフォルト音階 */
+	defaultNote?: NoteName;
 }
 
 /**
@@ -58,9 +60,10 @@ export const BINARY_KEYS = ["a", "s", "d", "f"] as const;
  * 例: a=on, s=off, d=on, f=off → 0101（左から） → 反転して1010 → 10 → F5
  *
  * @param pressedKeys 現在押されているキーのSet
+ * @param baseNote 0000時の基準音階（オプション、未指定時はC4）
  * @returns 対応する音階（NoteName）
  */
-export function calculateBinaryScale(pressedKeys: Set<string>): NoteName {
+export function calculateBinaryScale(pressedKeys: Set<string>, baseNote?: NoteName): NoteName {
 	let binaryValue = 0;
 
 	// 左から読んだ二進数を構築し、それを反転して通常の二進数値にする
@@ -73,7 +76,18 @@ export function calculateBinaryScale(pressedKeys: Set<string>): NoteName {
 	// 0-15の範囲を保証
 	const clampedValue = Math.max(0, Math.min(15, binaryValue));
 
-	return BINARY_TO_NOTE[clampedValue];
+	if (baseNote) {
+		// 基準音階からのオフセット計算
+		const baseIndex = BINARY_TO_NOTE.indexOf(baseNote);
+		const targetIndex = baseIndex + clampedValue;
+		
+		// 配列の範囲内に収まるようにクランプ
+		const finalIndex = Math.max(0, Math.min(BINARY_TO_NOTE.length - 1, targetIndex));
+		return BINARY_TO_NOTE[finalIndex];
+	} else {
+		// 従来の固定マッピング
+		return BINARY_TO_NOTE[clampedValue];
+	}
 }
 
 /**
@@ -102,8 +116,8 @@ export function determineOutputScale(
 		const hasBinaryKeyPressed = BINARY_KEYS.some((key) => pressedKeys.has(key));
 
 		if (hasBinaryKeyPressed) {
-			// 二進数計算で音階を決定
-			const calculatedScale = calculateBinaryScale(pressedKeys);
+			// 二進数計算で音階を決定（基準音階からのオフセット）
+			const calculatedScale = calculateBinaryScale(pressedKeys, config.defaultNote);
 
 			// デバッグ用: 左から読んだ二進数表示と実際の値を計算
 			let binaryValue = 0;
@@ -125,15 +139,15 @@ export function determineOutputScale(
 				reason: `発声キー押下中: 二進数${binaryString}(${binaryValue})から ${calculatedScale}`,
 			};
 		} else {
-			// 二進数キーが押されていない場合は0000として扱う（C4を再生）
-			const defaultScale = BINARY_TO_NOTE[0]; // C4
+			// 二進数キーが押されていない場合は設定されたデフォルト音階を使用
+			const defaultScale = config.defaultNote || BINARY_TO_NOTE[0]; // 設定またはC4
 			return {
 				shouldPlay: true,
 				noteToPlay: defaultScale,
 				newAudioState: {
 					currentlyPlayingNote: defaultScale,
 				},
-				reason: `発声キー押下中: 二進数キー未押下のため0000(0)として ${defaultScale}`,
+				reason: `発声キー押下中: 二進数キー未押下のため0000として ${defaultScale}`,
 			};
 		}
 	} else {

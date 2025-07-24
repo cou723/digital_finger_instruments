@@ -16,42 +16,64 @@ const mockConfig: ScaleDecisionConfig = {
 	priorityStrategy: "last-pressed",
 };
 
+const mockConfigWithDefaultNote: ScaleDecisionConfig = {
+	voiceKeys: ["j"],
+	priorityStrategy: "last-pressed",
+	defaultNote: "E4", // テスト用にE4を設定
+};
+
 describe("scaleDecision", () => {
 	describe("calculateBinaryScale", () => {
-		it("二進数0000 (全てoff) → C4", () => {
-			const pressedKeys = new Set<string>();
-			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("C4");
+		describe("基準音階なし（従来の固定マッピング）", () => {
+			it("二進数0000 (全てoff) → C4", () => {
+				const pressedKeys = new Set<string>();
+				const result = calculateBinaryScale(pressedKeys);
+				expect(result).toBe("C4");
+			});
+
+			it("二進数0001 (fのみon) → D5", () => {
+				const pressedKeys = new Set(["f"]);
+				const result = calculateBinaryScale(pressedKeys);
+				expect(result).toBe("D5"); // 左から0001 → f=1<<3 → 8 → D5
+			});
+
+			it("二進数1001 (a,fがon) → E5", () => {
+				const pressedKeys = new Set(["a", "f"]);
+				const result = calculateBinaryScale(pressedKeys);
+				expect(result).toBe("E5"); // 左から1001 → a=1<<0, f=1<<3 → 1+8=9 → E5
+			});
 		});
 
-		it("二進数0001 (fのみon) → D5", () => {
-			const pressedKeys = new Set(["f"]);
-			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("D5"); // 左から0001 → f=1<<3 → 8 → D5
-		});
+		describe("基準音階あり（オフセット計算）", () => {
+			it("基準E4: 二進数0000 → E4", () => {
+				const pressedKeys = new Set<string>();
+				const result = calculateBinaryScale(pressedKeys, "E4");
+				expect(result).toBe("E4"); // E4 + 0 = E4
+			});
 
-		it("二進数1001 (a,fがon) → E5", () => {
-			const pressedKeys = new Set(["a", "f"]);
-			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("E5"); // 左から1001 → a=1<<0, f=1<<3 → 1+8=9 → E5
-		});
+			it("基準E4: 二進数0001 → F5", () => {
+				const pressedKeys = new Set(["f"]);
+				const result = calculateBinaryScale(pressedKeys, "E4");
+				expect(result).toBe("F5"); // E4(index=2) + 8 = index=10 → F5
+			});
 
-		it("二進数1010 (a,dがon) → A4", () => {
-			const pressedKeys = new Set(["a", "d"]);
-			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("A4"); // 左から1010 → a=1<<0, d=1<<2 → 1+4=5 → A4
-		});
+			it("基準E4: 二進数1000 → F4", () => {
+				const pressedKeys = new Set(["a"]);
+				const result = calculateBinaryScale(pressedKeys, "E4");
+				expect(result).toBe("F4"); // E4(index=2) + 1 = index=3 → F4
+			});
 
-		it("二進数1111 (全てon) → D6", () => {
-			const pressedKeys = new Set(["a", "s", "d", "f"]);
-			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("D6"); // 1111 = 15 → D6
-		});
+			it("基準A4: 二進数0100 → C5", () => {
+				const pressedKeys = new Set(["s"]);
+				const result = calculateBinaryScale(pressedKeys, "A4");
+				expect(result).toBe("C5"); // A4(index=5) + 2 = index=7 → C5
+			});
 
-		it("関係ないキーが含まれても正しく計算", () => {
-			const pressedKeys = new Set(["a", "f", "j", "k", "l"]);
-			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("E5"); // 左から1001 → a=1<<0, f=1<<3 → 1+8=9 → E5
+			it("範囲外の場合はクランプ", () => {
+				const pressedKeys = new Set(["a", "s", "d", "f"]); // 1111 = 15
+				const result = calculateBinaryScale(pressedKeys, "C6");
+				expect(result).toBe("D6"); // C6(index=14) + 15 = 29 → クランプして15 → D6
+			});
 		});
 	});
 
@@ -95,7 +117,7 @@ describe("scaleDecision", () => {
 				expect(result.shouldPlay).toBe(true);
 				expect(result.noteToPlay).toBe("C4");
 				expect(result.newAudioState.currentlyPlayingNote).toBe("C4");
-				expect(result.reason).toContain("0000(0)として C4");
+				expect(result.reason).toContain("0000として C4");
 			});
 
 			it("二進数0001 (j+f) → D5を再生", () => {
@@ -158,6 +180,47 @@ describe("scaleDecision", () => {
 				expect(result.noteToPlay).toBe("D6");
 				expect(result.newAudioState.currentlyPlayingNote).toBe("D6");
 				expect(result.reason).toContain("二進数1111(15)から D6");
+			});
+
+			it("カスタムデフォルト音階: 二進数キーなしでE4を再生", () => {
+				const keyboardState: KeyboardState = {
+					pressedKeys: new Set(["j"]),
+					keyPressOrder: ["j"],
+					lastVoiceKeyPressTime: 1000,
+				};
+				const audioState = createEmptyAudioState();
+
+				const result = determineOutputScale(
+					keyboardState,
+					audioState,
+					mockConfigWithDefaultNote,
+				);
+
+				expect(result.shouldPlay).toBe(true);
+				expect(result.noteToPlay).toBe("E4"); // カスタムデフォルト音階
+				expect(result.newAudioState.currentlyPlayingNote).toBe("E4");
+				expect(result.reason).toContain("0000として E4");
+			});
+
+			it("カスタムデフォルト音階: 二進数1000(a) → F4を再生", () => {
+				const keyboardState: KeyboardState = {
+					pressedKeys: new Set(["j", "a"]),
+					keyPressOrder: ["j", "a"],
+					lastVoiceKeyPressTime: 1000,
+					lastScaleKeyPressTime: 1001,
+				};
+				const audioState = createEmptyAudioState();
+
+				const result = determineOutputScale(
+					keyboardState,
+					audioState,
+					mockConfigWithDefaultNote,
+				);
+
+				expect(result.shouldPlay).toBe(true);
+				expect(result.noteToPlay).toBe("F4"); // E4 + 1 = F4
+				expect(result.newAudioState.currentlyPlayingNote).toBe("F4");
+				expect(result.reason).toContain("二進数1000(1)から F4");
 			});
 		});
 	});
