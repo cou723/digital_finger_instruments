@@ -1,4 +1,5 @@
 import type { NoteName } from "./noteFrequencies";
+import { BINARY_TO_NOTE } from "./noteFrequencies";
 
 /**
  * キーボードの状態を表すインターフェース
@@ -28,10 +29,8 @@ export interface AudioState {
 export interface ScaleDecisionConfig {
 	/** 発声キーの定義 */
 	voiceKeys: readonly string[];
-	/** 音階キーから音階へのマッピング */
-	scaleKeyMapping: Record<string, NoteName>;
 	/** 優先戦略 */
-	priorityStrategy?: 'last-pressed' | 'voice-key-priority';
+	priorityStrategy?: "last-pressed" | "voice-key-priority";
 }
 
 /**
@@ -49,8 +48,37 @@ export interface ScaleDecisionResult {
 }
 
 /**
+ * 二進数キーの定義 (a, s, d, f)
+ */
+export const BINARY_KEYS = ["a", "s", "d", "f"] as const;
+
+/**
+ * キーボード状態から二進数値を計算し、対応する音階を返す
+ * asdf = 左から右へ二進数として解釈
+ * 例: a=on, s=off, d=on, f=off → 1010 → 10 → A5
+ *
+ * @param pressedKeys 現在押されているキーのSet
+ * @returns 対応する音階（NoteName）
+ */
+export function calculateBinaryScale(pressedKeys: Set<string>): NoteName {
+	let binaryValue = 0;
+
+	// 左から右へ二進数として計算 (a=最上位ビット, f=最下位ビット)
+	BINARY_KEYS.forEach((key, index) => {
+		if (pressedKeys.has(key)) {
+			binaryValue |= 1 << (BINARY_KEYS.length - 1 - index);
+		}
+	});
+
+	// 0-15の範囲を保証
+	const clampedValue = Math.max(0, Math.min(15, binaryValue));
+
+	return BINARY_TO_NOTE[clampedValue];
+}
+
+/**
  * キーボード状態から出力すべき音階を決定する純粋関数
- * 
+ *
  * @param keyboardState 現在のキーボード状態
  * @param audioState 現在のオーディオ状態
  * @param config 音階決定の設定
@@ -59,41 +87,53 @@ export interface ScaleDecisionResult {
 export function determineOutputScale(
 	keyboardState: KeyboardState,
 	audioState: AudioState,
-	config: ScaleDecisionConfig
+	config: ScaleDecisionConfig,
 ): ScaleDecisionResult {
-	const { pressedKeys, keyPressOrder } = keyboardState;
-	const { currentlyPlayingNote } = audioState;
-	
+	const { pressedKeys } = keyboardState;
+
 	// 発声キーが押されているか判定
-	const isVoiceKeyPressed = config.voiceKeys.some(key => pressedKeys.has(key));
-	
-	// 現在押されている最新の音階キーを取得（後に押されたキーが優先）
-	const latestScaleKey = [...keyPressOrder]
-		.reverse()
-		.find(key => key in config.scaleKeyMapping && pressedKeys.has(key));
-		
-	const latestScale = latestScaleKey ? config.scaleKeyMapping[latestScaleKey] : undefined;
-	
+	const isVoiceKeyPressed = config.voiceKeys.some((key) =>
+		pressedKeys.has(key),
+	);
+
 	if (isVoiceKeyPressed) {
 		// 発声キーが押されている場合
-		if (latestScale) {
-			// 現在押されている音階キーがある場合のみ再生
+		// 二進数キー（a,s,d,f）のいずれかが押されているかチェック
+		const hasBinaryKeyPressed = BINARY_KEYS.some((key) => pressedKeys.has(key));
+
+		if (hasBinaryKeyPressed) {
+			// 二進数計算で音階を決定
+			const calculatedScale = calculateBinaryScale(pressedKeys);
+
+			// デバッグ用: 現在の二進数値を計算
+			let binaryValue = 0;
+			BINARY_KEYS.forEach((key, index) => {
+				if (pressedKeys.has(key)) {
+					binaryValue |= 1 << (BINARY_KEYS.length - 1 - index);
+				}
+			});
+			const binaryString = BINARY_KEYS.map((key) =>
+				pressedKeys.has(key) ? "1" : "0",
+			).join("");
+
 			return {
 				shouldPlay: true,
-				noteToPlay: latestScale,
+				noteToPlay: calculatedScale,
 				newAudioState: {
-					currentlyPlayingNote: latestScale
+					currentlyPlayingNote: calculatedScale,
 				},
-				reason: `発声キー押下中: 現在押されている音階キー(${latestScaleKey})から ${latestScale}`
+				reason: `発声キー押下中: 二進数${binaryString}(${binaryValue})から ${calculatedScale}`,
 			};
 		} else {
-			// 現在押されている音階キーがない場合は再生しない
+			// 二進数キーが押されていない場合は0000として扱う（C4を再生）
+			const defaultScale = BINARY_TO_NOTE[0]; // C4
 			return {
-				shouldPlay: false,
+				shouldPlay: true,
+				noteToPlay: defaultScale,
 				newAudioState: {
-					currentlyPlayingNote: undefined
+					currentlyPlayingNote: defaultScale,
 				},
-				reason: "発声キー押下中だが現在押されている音階キーがない"
+				reason: `発声キー押下中: 二進数キー未押下のため0000(0)として ${defaultScale}`,
 			};
 		}
 	} else {
@@ -101,9 +141,9 @@ export function determineOutputScale(
 		return {
 			shouldPlay: false,
 			newAudioState: {
-				currentlyPlayingNote: undefined
+				currentlyPlayingNote: undefined,
 			},
-			reason: "発声キー未押下: 音を停止"
+			reason: "発声キー未押下: 音を停止",
 		};
 	}
 }
@@ -114,39 +154,39 @@ export function determineOutputScale(
 export function updateKeyboardState(
 	currentState: KeyboardState,
 	key: string,
-	action: 'press' | 'release',
+	action: "press" | "release",
 	timestamp: number = Date.now(),
-	config: ScaleDecisionConfig
+	config: ScaleDecisionConfig,
 ): KeyboardState {
 	const newPressedKeys = new Set(currentState.pressedKeys);
 	let newKeyPressOrder = [...currentState.keyPressOrder];
 	let newLastVoiceKeyPressTime = currentState.lastVoiceKeyPressTime;
 	let newLastScaleKeyPressTime = currentState.lastScaleKeyPressTime;
-	
-	if (action === 'press') {
+
+	if (action === "press") {
 		newPressedKeys.add(key);
-		
+
 		// キーが既に押下順序に含まれている場合は削除してから末尾に追加
-		newKeyPressOrder = newKeyPressOrder.filter(k => k !== key);
+		newKeyPressOrder = newKeyPressOrder.filter((k) => k !== key);
 		newKeyPressOrder.push(key);
-		
+
 		// タイムスタンプの更新
 		if (config.voiceKeys.includes(key)) {
 			newLastVoiceKeyPressTime = timestamp;
 		}
-		if (key in config.scaleKeyMapping) {
+		if (BINARY_KEYS.includes(key as (typeof BINARY_KEYS)[number])) {
 			newLastScaleKeyPressTime = timestamp;
 		}
 	} else {
 		newPressedKeys.delete(key);
 		// キーが離された場合は押下順序からは削除しない（最後に押されたキーの情報を保持）
 	}
-	
+
 	return {
 		pressedKeys: newPressedKeys,
 		keyPressOrder: newKeyPressOrder,
 		lastVoiceKeyPressTime: newLastVoiceKeyPressTime,
-		lastScaleKeyPressTime: newLastScaleKeyPressTime
+		lastScaleKeyPressTime: newLastScaleKeyPressTime,
 	};
 }
 
@@ -158,7 +198,7 @@ export function createEmptyKeyboardState(): KeyboardState {
 		pressedKeys: new Set(),
 		keyPressOrder: [],
 		lastVoiceKeyPressTime: undefined,
-		lastScaleKeyPressTime: undefined
+		lastScaleKeyPressTime: undefined,
 	};
 }
 
@@ -167,6 +207,6 @@ export function createEmptyKeyboardState(): KeyboardState {
  */
 export function createEmptyAudioState(): AudioState {
 	return {
-		currentlyPlayingNote: undefined
+		currentlyPlayingNote: undefined,
 	};
 }

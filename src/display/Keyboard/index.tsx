@@ -1,15 +1,16 @@
 import {
-	KEY_TO_NOTE,
+	BINARY_TO_NOTE,
 	NOTE_NAMES,
 	type NoteName,
 } from "../../shared/noteFrequencies";
+import { BINARY_KEYS } from "../../shared/scaleDecision";
 
 interface KeyboardProps {
 	currentNote?: NoteName | null;
 }
 
 export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
-	const keyStyle = (_key: string, note: NoteName) => ({
+	const keyStyle = (_key: string, _bitPosition: number) => ({
 		display: "inline-flex",
 		flexDirection: "column" as const,
 		alignItems: "center",
@@ -18,19 +19,33 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 		height: "80px",
 		margin: "4px",
 		padding: "8px",
-		backgroundColor: currentNote === note ? "#4CAF50" : "#ffffff",
+		backgroundColor: "#ffffff",
 		border: "2px solid #ddd",
 		borderRadius: "8px",
 		fontSize: "14px",
 		fontWeight: "bold",
 		cursor: "pointer",
 		transition: "all 0.1s ease",
-		boxShadow:
-			currentNote === note
-				? "0 4px 8px rgba(0,0,0,0.2)"
-				: "0 2px 4px rgba(0,0,0,0.1)",
-		transform: currentNote === note ? "translateY(2px)" : "none",
+		boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+		color: "#333",
+	});
+
+	const noteDisplayStyle = (note: NoteName) => ({
+		display: "inline-flex",
+		flexDirection: "column" as const,
+		alignItems: "center",
+		justifyContent: "center",
+		width: "60px",
+		height: "60px",
+		margin: "2px",
+		padding: "4px",
+		backgroundColor: currentNote === note ? "#4CAF50" : "#f5f5f5",
+		border: "1px solid #ddd",
+		borderRadius: "6px",
+		fontSize: "10px",
+		fontWeight: "bold",
 		color: currentNote === note ? "white" : "#333",
+		transition: "all 0.1s ease",
 	});
 
 	return (
@@ -52,29 +67,71 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 			>
 				キーボード
 			</h2>
+			{/* 二進数キーの表示 */}
+			<div
+				style={{
+					display: "flex",
+					justifyContent: "center",
+					gap: "8px",
+					marginBottom: "20px",
+				}}
+			>
+				{BINARY_KEYS.map((key, index) => (
+					<div key={key} style={keyStyle(key, index)}>
+						<div style={{ fontSize: "18px", fontWeight: "bold" }}>
+							{key.toUpperCase()}
+						</div>
+						<div style={{ fontSize: "12px", marginTop: "4px" }}>
+							bit {3 - index}
+						</div>
+						<div style={{ fontSize: "10px", marginTop: "2px", opacity: 0.8 }}>
+							{3 - index === 3
+								? "8"
+								: 3 - index === 2
+									? "4"
+									: 3 - index === 1
+										? "2"
+										: "1"}
+						</div>
+					</div>
+				))}
+			</div>
+
+			{/* 全音階の表示 */}
+			<div
+				style={{
+					textAlign: "center",
+					marginBottom: "10px",
+					fontSize: "16px",
+					fontWeight: "bold",
+					color: "#333",
+				}}
+			>
+				音階一覧 (0-15 → C4-D6)
+			</div>
 			<div
 				style={{
 					display: "flex",
 					justifyContent: "center",
 					flexWrap: "wrap",
-					gap: "4px",
+					gap: "2px",
+					maxWidth: "600px",
+					margin: "0 auto",
 				}}
 			>
-				{Object.entries(KEY_TO_NOTE).map(([key, note]) => (
-					<div key={key} style={keyStyle(key, note)}>
-						<div style={{ fontSize: "18px", fontWeight: "bold" }}>
-							{key.toUpperCase()}
+				{BINARY_TO_NOTE.map((note, index) => (
+					<div key={`${note}-${index}`} style={noteDisplayStyle(note)}>
+						<div style={{ fontSize: "8px", opacity: 0.8 }}>
+							{index.toString(2).padStart(4, "0")}
 						</div>
-						<div style={{ fontSize: "12px", marginTop: "4px" }}>
+						<div style={{ fontSize: "10px", fontWeight: "bold" }}>
 							{NOTE_NAMES[note]}
 						</div>
-						<div style={{ fontSize: "10px", marginTop: "2px", opacity: 0.8 }}>
-							({note})
-						</div>
+						<div style={{ fontSize: "8px", opacity: 0.8 }}>{note}</div>
 					</div>
 				))}
 			</div>
-			
+
 			{/* jキー発音制御の表示 */}
 			<div
 				style={{
@@ -102,8 +159,9 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 						lineHeight: "1.5",
 					}}
 				>
-					Jキーを押している間のみ音が鳴ります。<br />
-					Jキーを押しながら他のキーを押すと音階が変わります。
+					Jキーを押している間のみ音が鳴ります。
+					<br />
+					Jキー + A,S,D,Fキーの組み合わせで音階を決定します（二進数）。
 				</div>
 			</div>
 			<div
@@ -115,7 +173,8 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 					margin: "20px auto 0",
 				}}
 			>
-				各キーは音階に対応しています（Jキー + 音階キーで発音）
+				A,S,D,Fキーを二進数として組み合わせて音階を指定します（Jキー +
+				二進数キーで発音）
 				{currentNote && (
 					<div
 						style={{

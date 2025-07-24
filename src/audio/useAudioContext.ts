@@ -78,7 +78,7 @@ export const useAudioContext = (): AudioContextResult => {
 						currentOscillator.stop();
 					} catch (error) {
 						// オシレーターが既に停止している場合は無視
-						console.warn('Oscillator stop warning:', error);
+						console.warn("Oscillator stop warning:", error);
 					}
 				}, 20);
 			} catch (cause) {

@@ -1,67 +1,75 @@
 import { describe, expect, it } from "vitest";
 import {
-	determineOutputScale,
-	updateKeyboardState,
-	createEmptyKeyboardState,
-	createEmptyAudioState,
-	type KeyboardState,
 	type AudioState,
+	BINARY_KEYS,
+	calculateBinaryScale,
+	createEmptyAudioState,
+	createEmptyKeyboardState,
+	determineOutputScale,
+	type KeyboardState,
 	type ScaleDecisionConfig,
+	updateKeyboardState,
 } from "../scaleDecision";
 
 const mockConfig: ScaleDecisionConfig = {
 	voiceKeys: ["j"],
-	scaleKeyMapping: {
-		a: "C4",
-		s: "D4",
-		d: "E4",
-		f: "F4",
-		z: "G4",
-		x: "A4",
-		c: "B4",
-		v: "C5",
-	},
 	priorityStrategy: "last-pressed",
 };
 
 describe("scaleDecision", () => {
+	describe("calculateBinaryScale", () => {
+		it("二進数0000 (全てoff) → C4", () => {
+			const pressedKeys = new Set<string>();
+			const result = calculateBinaryScale(pressedKeys);
+			expect(result).toBe("C4");
+		});
+
+		it("二進数0001 (fのみon) → D4", () => {
+			const pressedKeys = new Set(["f"]);
+			const result = calculateBinaryScale(pressedKeys);
+			expect(result).toBe("D4");
+		});
+
+		it("二進数1001 (a,fがon) → E5", () => {
+			const pressedKeys = new Set(["a", "f"]);
+			const result = calculateBinaryScale(pressedKeys);
+			expect(result).toBe("E5"); // 1001 = 9 → E5
+		});
+
+		it("二進数1010 (a,dがon) → F5", () => {
+			const pressedKeys = new Set(["a", "d"]);
+			const result = calculateBinaryScale(pressedKeys);
+			expect(result).toBe("F5"); // 1010 = 10 → F5
+		});
+
+		it("二進数1111 (全てon) → D6", () => {
+			const pressedKeys = new Set(["a", "s", "d", "f"]);
+			const result = calculateBinaryScale(pressedKeys);
+			expect(result).toBe("D6"); // 1111 = 15 → D6
+		});
+
+		it("関係ないキーが含まれても正しく計算", () => {
+			const pressedKeys = new Set(["a", "f", "j", "k", "l"]);
+			const result = calculateBinaryScale(pressedKeys);
+			expect(result).toBe("E5"); // a=1, f=1 → 1001 = 9 → E5
+		});
+	});
+
 	describe("determineOutputScale", () => {
 		describe("発声キーが押されていない場合", () => {
-			it("音階キーのみ押下時は音は鳴らない", () => {
+			it("二進数キーが押されていても音は鳴らない", () => {
 				const keyboardState: KeyboardState = {
-					pressedKeys: new Set(["a"]),
-					keyPressOrder: ["a"],
+					pressedKeys: new Set(["a", "s"]),
+					keyPressOrder: ["a", "s"],
 					lastScaleKeyPressTime: 1000,
 				};
 				const audioState = createEmptyAudioState();
 
-				const result = determineOutputScale(keyboardState, audioState, mockConfig);
-
-				expect(result.shouldPlay).toBe(false);
-				expect(result.newAudioState.currentlyPlayingNote).toBeUndefined();
-				expect(result.reason).toContain("発声キー未押下");
-			});
-
-			it("任意の音階キーが押されていても発声キーがなければ音は鳴らない", () => {
-				const keyboardState: KeyboardState = {
-					pressedKeys: new Set(["s"]),
-					keyPressOrder: ["s"],
-					lastScaleKeyPressTime: 1000,
-				};
-				const audioState = createEmptyAudioState();
-
-				const result = determineOutputScale(keyboardState, audioState, mockConfig);
-
-				expect(result.shouldPlay).toBe(false);
-				expect(result.newAudioState.currentlyPlayingNote).toBeUndefined();
-				expect(result.reason).toContain("発声キー未押下");
-			});
-
-			it("音階キーが押されていない場合、音は鳴らない", () => {
-				const keyboardState = createEmptyKeyboardState();
-				const audioState = createEmptyAudioState();
-
-				const result = determineOutputScale(keyboardState, audioState, mockConfig);
+				const result = determineOutputScale(
+					keyboardState,
+					audioState,
+					mockConfig,
+				);
 
 				expect(result.shouldPlay).toBe(false);
 				expect(result.newAudioState.currentlyPlayingNote).toBeUndefined();
@@ -70,24 +78,7 @@ describe("scaleDecision", () => {
 		});
 
 		describe("発声キーが押されている場合", () => {
-			it("音階キーも同時押しの場合、その音階を再生", () => {
-				const keyboardState: KeyboardState = {
-					pressedKeys: new Set(["j", "a"]),
-					keyPressOrder: ["a", "j"],
-					lastVoiceKeyPressTime: 1001,
-					lastScaleKeyPressTime: 1000,
-				};
-				const audioState = createEmptyAudioState();
-
-				const result = determineOutputScale(keyboardState, audioState, mockConfig);
-
-				expect(result.shouldPlay).toBe(true);
-				expect(result.noteToPlay).toBe("C4");
-				expect(result.newAudioState.currentlyPlayingNote).toBe("C4");
-				expect(result.reason).toContain("現在押されている音階キー(a)から C4");
-			});
-
-			it("発声キーのみ押下で音階キーがない場合、音は鳴らない", () => {
+			it("二進数キーなしの場合、C4を再生（0000として扱う）", () => {
 				const keyboardState: KeyboardState = {
 					pressedKeys: new Set(["j"]),
 					keyPressOrder: ["j"],
@@ -95,51 +86,84 @@ describe("scaleDecision", () => {
 				};
 				const audioState = createEmptyAudioState();
 
-				const result = determineOutputScale(keyboardState, audioState, mockConfig);
+				const result = determineOutputScale(
+					keyboardState,
+					audioState,
+					mockConfig,
+				);
 
-				expect(result.shouldPlay).toBe(false);
-				expect(result.newAudioState.currentlyPlayingNote).toBeUndefined();
-				expect(result.reason).toContain("現在押されている音階キーがない");
+				expect(result.shouldPlay).toBe(true);
+				expect(result.noteToPlay).toBe("C4");
+				expect(result.newAudioState.currentlyPlayingNote).toBe("C4");
+				expect(result.reason).toContain("0000(0)として C4");
 			});
 
-			it("複数の音階キーが押されている場合、最後に押されたキーを優先", () => {
+			it("二進数0001 (j+f) → D4を再生", () => {
 				const keyboardState: KeyboardState = {
-					pressedKeys: new Set(["j", "a", "s", "d"]),
-					keyPressOrder: ["a", "j", "s", "d"], // dが最後
-					lastVoiceKeyPressTime: 999,
+					pressedKeys: new Set(["j", "f"]),
+					keyPressOrder: ["j", "f"],
+					lastVoiceKeyPressTime: 1000,
+					lastScaleKeyPressTime: 1001,
+				};
+				const audioState = createEmptyAudioState();
+
+				const result = determineOutputScale(
+					keyboardState,
+					audioState,
+					mockConfig,
+				);
+
+				expect(result.shouldPlay).toBe(true);
+				expect(result.noteToPlay).toBe("D4");
+				expect(result.newAudioState.currentlyPlayingNote).toBe("D4");
+				expect(result.reason).toContain("二進数0001(1)から D4");
+			});
+
+			it("二進数1001 (j+a+f) → E5を再生", () => {
+				const keyboardState: KeyboardState = {
+					pressedKeys: new Set(["j", "a", "f"]),
+					keyPressOrder: ["j", "a", "f"],
+					lastVoiceKeyPressTime: 1000,
 					lastScaleKeyPressTime: 1002,
 				};
 				const audioState = createEmptyAudioState();
 
-				const result = determineOutputScale(keyboardState, audioState, mockConfig);
+				const result = determineOutputScale(
+					keyboardState,
+					audioState,
+					mockConfig,
+				);
 
 				expect(result.shouldPlay).toBe(true);
-				expect(result.noteToPlay).toBe("E4"); // dキー = E4
-				expect(result.reason).toContain("現在押されている音階キー(d)から E4");
+				expect(result.noteToPlay).toBe("E5"); // 1001 = 9 → E5
+				expect(result.reason).toContain("二進数1001(9)から E5");
 			});
-		});
 
-		describe("音階キーが離された場合の動作", () => {
-			it("音階キーを離した場合、発声キーが押されていても音は停止すべき", () => {
+			it("二進数1111 (j+a+s+d+f) → D6を再生", () => {
 				const keyboardState: KeyboardState = {
-					pressedKeys: new Set(["j"]), // 音階キーは離されている
-					keyPressOrder: ["a", "j"], // aは押下履歴にあるが現在は離されている
-					lastVoiceKeyPressTime: 1001,
-					lastScaleKeyPressTime: 1000,
+					pressedKeys: new Set(["j", "a", "s", "d", "f"]),
+					keyPressOrder: ["j", "a", "s", "d", "f"],
+					lastVoiceKeyPressTime: 999,
+					lastScaleKeyPressTime: 1003,
 				};
 				const audioState = createEmptyAudioState();
 
-				const result = determineOutputScale(keyboardState, audioState, mockConfig);
+				const result = determineOutputScale(
+					keyboardState,
+					audioState,
+					mockConfig,
+				);
 
-				expect(result.shouldPlay).toBe(false);
-				expect(result.newAudioState.currentlyPlayingNote).toBeUndefined();
-				expect(result.reason).toContain("現在押されている音階キーがない");
+				expect(result.shouldPlay).toBe(true);
+				expect(result.noteToPlay).toBe("D6");
+				expect(result.newAudioState.currentlyPlayingNote).toBe("D6");
+				expect(result.reason).toContain("二進数1111(15)から D6");
 			});
 		});
 	});
 
 	describe("updateKeyboardState", () => {
-		it("キー押下時に状態を正しく更新", () => {
+		it("二進数キー押下時にタイムスタンプを記録", () => {
 			const currentState = createEmptyKeyboardState();
 			const timestamp = 1000;
 
@@ -148,7 +172,7 @@ describe("scaleDecision", () => {
 				"a",
 				"press",
 				timestamp,
-				mockConfig
+				mockConfig,
 			);
 
 			expect(newState.pressedKeys.has("a")).toBe(true);
@@ -165,7 +189,7 @@ describe("scaleDecision", () => {
 				"j",
 				"press",
 				timestamp,
-				mockConfig
+				mockConfig,
 			);
 
 			expect(newState.pressedKeys.has("j")).toBe(true);
@@ -173,7 +197,7 @@ describe("scaleDecision", () => {
 			expect(newState.lastVoiceKeyPressTime).toBe(timestamp);
 		});
 
-		it("キー解放時に押下キーから削除（押下順序は保持）", () => {
+		it("キー解放時に押下キーから削除", () => {
 			const currentState: KeyboardState = {
 				pressedKeys: new Set(["a", "j"]),
 				keyPressOrder: ["a", "j"],
@@ -186,32 +210,121 @@ describe("scaleDecision", () => {
 				"a",
 				"release",
 				1001,
-				mockConfig
+				mockConfig,
 			);
 
 			expect(newState.pressedKeys.has("a")).toBe(false);
 			expect(newState.pressedKeys.has("j")).toBe(true);
 			expect(newState.keyPressOrder).toEqual(["a", "j"]); // 順序は保持
-			expect(newState.lastVoiceKeyPressTime).toBe(1000); // タイムスタンプは変更されない
 		});
+	});
 
-		it("同じキーを再度押した場合、押下順序の末尾に移動", () => {
-			const currentState: KeyboardState = {
-				pressedKeys: new Set(["a", "s"]),
-				keyPressOrder: ["a", "s"],
-				lastScaleKeyPressTime: 1000,
-			};
+	describe("複雑なシナリオテスト", () => {
+		it("リアルタイム音階変更: j押下中にadsfの組み合わせを変更", () => {
+			let keyboardState = createEmptyKeyboardState();
+			let audioState = createEmptyAudioState();
 
-			const newState = updateKeyboardState(
-				currentState,
+			// J押下 (0000 → C4)
+			keyboardState = updateKeyboardState(
+				keyboardState,
+				"j",
+				"press",
+				1000,
+				mockConfig,
+			);
+			let result = determineOutputScale(keyboardState, audioState, mockConfig);
+			expect(result.shouldPlay).toBe(true);
+			expect(result.noteToPlay).toBe("C4");
+			audioState = result.newAudioState;
+
+			// A押下 (1000 → D5)
+			keyboardState = updateKeyboardState(
+				keyboardState,
 				"a",
 				"press",
 				1001,
-				mockConfig
+				mockConfig,
+			);
+			result = determineOutputScale(keyboardState, audioState, mockConfig);
+			expect(result.shouldPlay).toBe(true);
+			expect(result.noteToPlay).toBe("D5"); // 1000 = 8 → D5
+			audioState = result.newAudioState;
+
+			// F押下 (1001 → E5)
+			keyboardState = updateKeyboardState(
+				keyboardState,
+				"f",
+				"press",
+				1002,
+				mockConfig,
+			);
+			result = determineOutputScale(keyboardState, audioState, mockConfig);
+			expect(result.shouldPlay).toBe(true);
+			expect(result.noteToPlay).toBe("E5"); // 1001 = 9 → E5
+			audioState = result.newAudioState;
+
+			// A解放 (0001 → D4)
+			keyboardState = updateKeyboardState(
+				keyboardState,
+				"a",
+				"release",
+				1003,
+				mockConfig,
+			);
+			result = determineOutputScale(keyboardState, audioState, mockConfig);
+			expect(result.shouldPlay).toBe(true);
+			expect(result.noteToPlay).toBe("D4"); // 0001 = 1 → D4
+			audioState = result.newAudioState;
+
+			// J解放 (音停止)
+			keyboardState = updateKeyboardState(
+				keyboardState,
+				"j",
+				"release",
+				1004,
+				mockConfig,
+			);
+			result = determineOutputScale(keyboardState, audioState, mockConfig);
+			expect(result.shouldPlay).toBe(false);
+			expect(result.newAudioState.currentlyPlayingNote).toBeUndefined();
+		});
+
+		it("実際の例: a=on, s=off, d=on, f=off → 1010 → F5", () => {
+			let keyboardState = createEmptyKeyboardState();
+			const audioState = createEmptyAudioState();
+
+			// J + A + D押下 (1010 = 10 → F5)
+			keyboardState = updateKeyboardState(
+				keyboardState,
+				"j",
+				"press",
+				1000,
+				mockConfig,
+			);
+			keyboardState = updateKeyboardState(
+				keyboardState,
+				"a",
+				"press",
+				1001,
+				mockConfig,
+			);
+			keyboardState = updateKeyboardState(
+				keyboardState,
+				"d",
+				"press",
+				1002,
+				mockConfig,
 			);
 
-			expect(newState.keyPressOrder).toEqual(["s", "a"]); // aが末尾に移動
-			expect(newState.lastScaleKeyPressTime).toBe(1001);
+			const result = determineOutputScale(
+				keyboardState,
+				audioState,
+				mockConfig,
+			);
+
+			expect(result.shouldPlay).toBe(true);
+			expect(result.noteToPlay).toBe("F5"); // 1010 = 10 → F5
+			expect(result.reason).toContain("二進数1010(10)から F5");
 		});
 	});
 
@@ -229,74 +342,6 @@ describe("scaleDecision", () => {
 			const state = createEmptyAudioState();
 
 			expect(state.currentlyPlayingNote).toBeUndefined();
-		});
-	});
-
-	describe("複雑なシナリオテスト", () => {
-		it("正しい要求: A押下 → J押下 → S押下 → A解放 → J解放の流れ", () => {
-			let keyboardState = createEmptyKeyboardState();
-			let audioState = createEmptyAudioState();
-
-			// A押下 (音階キーのみ、音は鳴らない)
-			keyboardState = updateKeyboardState(keyboardState, "a", "press", 1000, mockConfig);
-			let result = determineOutputScale(keyboardState, audioState, mockConfig);
-			expect(result.shouldPlay).toBe(false);
-			expect(result.reason).toContain("発声キー未押下");
-			audioState = result.newAudioState;
-
-			// J押下 (発声キー + 音階キー、C4を再生)
-			keyboardState = updateKeyboardState(keyboardState, "j", "press", 1001, mockConfig);
-			result = determineOutputScale(keyboardState, audioState, mockConfig);
-			expect(result.shouldPlay).toBe(true);
-			expect(result.noteToPlay).toBe("C4");
-			expect(result.reason).toContain("現在押されている音階キー(a)から C4");
-			audioState = result.newAudioState;
-
-			// S押下 (C4からD4に切り替え)
-			keyboardState = updateKeyboardState(keyboardState, "s", "press", 1002, mockConfig);
-			result = determineOutputScale(keyboardState, audioState, mockConfig);
-			expect(result.shouldPlay).toBe(true);
-			expect(result.noteToPlay).toBe("D4"); // 最後に押されたsキーが優先
-			expect(result.reason).toContain("現在押されている音階キー(s)から D4");
-			audioState = result.newAudioState;
-
-			// A解放 (sキーがまだ押されているのでD4を継続)
-			keyboardState = updateKeyboardState(keyboardState, "a", "release", 1003, mockConfig);
-			result = determineOutputScale(keyboardState, audioState, mockConfig);
-			expect(result.shouldPlay).toBe(true);
-			expect(result.noteToPlay).toBe("D4");
-			expect(result.reason).toContain("現在押されている音階キー(s)から D4");
-			audioState = result.newAudioState;
-
-			// J解放 (発声キー解放で音停止)
-			keyboardState = updateKeyboardState(keyboardState, "j", "release", 1004, mockConfig);
-			result = determineOutputScale(keyboardState, audioState, mockConfig);
-			expect(result.shouldPlay).toBe(false);
-			expect(result.newAudioState.currentlyPlayingNote).toBeUndefined();
-			expect(result.reason).toContain("発声キー未押下");
-		});
-
-		it("間違ったパターン: A押下 → A解放 → J押下 では音は鳴らない", () => {
-			let keyboardState = createEmptyKeyboardState();
-			let audioState = createEmptyAudioState();
-
-			// A押下
-			keyboardState = updateKeyboardState(keyboardState, "a", "press", 1000, mockConfig);
-			let result = determineOutputScale(keyboardState, audioState, mockConfig);
-			expect(result.shouldPlay).toBe(false);
-			audioState = result.newAudioState;
-
-			// A解放
-			keyboardState = updateKeyboardState(keyboardState, "a", "release", 1001, mockConfig);
-			result = determineOutputScale(keyboardState, audioState, mockConfig);
-			expect(result.shouldPlay).toBe(false);
-			audioState = result.newAudioState;
-
-			// J押下 (音階キーが押されていないので音は鳴らない)
-			keyboardState = updateKeyboardState(keyboardState, "j", "press", 1002, mockConfig);
-			result = determineOutputScale(keyboardState, audioState, mockConfig);
-			expect(result.shouldPlay).toBe(false);
-			expect(result.reason).toContain("現在押されている音階キーがない");
 		});
 	});
 });

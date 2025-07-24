@@ -20,10 +20,10 @@ describe("App", () => {
 		expect(screen.getByText("キーボード")).toBeInTheDocument();
 	});
 
-	it("すべてのキーが表示される", () => {
+	it("二進数キーが表示される", () => {
 		render(<App />);
-		const keys = ["A", "S", "D", "F", "Z", "X", "C", "V"];
-		keys.forEach((key) => {
+		const binaryKeys = ["A", "S", "D", "F"];
+		binaryKeys.forEach((key) => {
 			expect(screen.getByText(key)).toBeInTheDocument();
 		});
 	});

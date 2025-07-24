@@ -1,3 +1,37 @@
+## 開発環境・ツール
+
+### パッケージマネージャー
+
+**pnpmを使用してください**:
+- このプロジェクトでは `pnpm` をパッケージマネージャーとして使用します
+- `npm` や `yarn` ではなく、必ず `pnpm` コマンドを使用してください
+
+**主要コマンド**:
+```bash
+# 依存関係のインストール
+pnpm install
+
+# 開発サーバー起動
+pnpm run dev
+
+# ビルド実行
+pnpm run build
+
+# テスト実行
+pnpm test
+
+# リンタ実行
+pnpm run lint
+
+# 型チェック
+pnpm run typecheck
+```
+
+**理由**:
+- 高速なインストールとディスク容量の節約
+- より厳密な依存関係管理
+- モノレポサポートの優秀さ
+
 ## コーディングスタイル
 
 ### フォルダ構造設計
@@ -274,3 +308,93 @@ export const useCalendarData = () => {
   return { events, loadEvents };
 };
 ```
+
+## デジタル楽器アプリケーション固有の概念
+
+### キー操作の抽象概念
+
+デジタル楽器アプリケーションにおいて、キーボード操作を以下の2つの抽象的な概念で分類します：
+
+#### 音階キー (Scale Keys)
+**定義**: 演奏する音階を指定するためのキー群  
+**対応キー**: `a`, `s`, `d`, `f`, `z`, `x`, `c`, `v`  
+**操作手**: 主に左手で操作  
+**機能**: 
+- 音階を指定（ド、レ、ミ、ファ、ソ、ラ、シ、高いド）
+- 発声キーが押されていない場合はキューに保存
+- 発声キー押下中は即座に音階変更
+
+**マッピング**:
+```typescript
+// 音階キーと音階の対応関係
+const SCALE_KEY_MAPPING = {
+  a: "C4",   // ド
+  s: "D4",   // レ  
+  d: "E4",   // ミ
+  f: "F4",   // ファ
+  z: "G4",   // ソ
+  x: "A4",   // ラ
+  c: "B4",   // シ
+  v: "C5",   // 高いド
+} as const;
+```
+
+#### 発声キー (Voice Keys)
+**定義**: 実際の音の発声を制御するキー群  
+**対応キー**: `j`  
+**操作手**: 主に右手で操作  
+**機能**:
+- 音の発声開始・停止を制御
+- 押している間のみ音が鳴る
+- キューされた音階キーがあれば即座に再生
+
+**動作例**:
+```typescript
+// 発声キーの基本動作
+if (isVoiceKeyPressed) {
+  // 音階キー押下時: 即座に音階変更
+  playNote(scaleKey);
+} else {
+  // 音階キー押下時: キューに保存（音は鳴らない）
+  queueNote(scaleKey);
+}
+```
+
+### 操作フローの概念モデル
+
+**基本操作パターン**:
+1. **音階キー押下** → 音階指定（キューまたは即座再生）
+2. **発声キー押下** → 発声開始（キューがあれば再生）
+3. **音階キー変更** → 音階切り替え（発声キー押下中）
+4. **発声キー解除** → 発声停止
+
+**状態管理の概念**:
+- `queuedNote`: 発声待ちの音階（音階キーで指定）
+- `currentNote`: 現在発声中の音階（発声キー + 音階キーで決定）
+- `isVoiceKeyPressed`: 発声キーの押下状態
+
+### コード内での使用例
+
+```typescript
+// ✅ 良い例 - 概念を明確に分離
+const handleScaleKeyPress = (scaleKey: string) => {
+  const note = SCALE_KEY_MAPPING[scaleKey];
+  if (isVoiceKeyPressed) {
+    playNoteImmediately(note);
+  } else {
+    queueNoteForVoice(note);
+  }
+};
+
+const handleVoiceKeyPress = () => {
+  setVoiceKeyPressed(true);
+  if (queuedNote) {
+    playQueuedNote();
+  }
+};
+```
+
+**命名規則**:
+- 音階キー関連: `scaleKey`, `noteMapping`, `queuedNote`
+- 発声キー関連: `voiceKey`, `isVoiceKeyPressed`, `voiceControl`
+- 複合概念: `notePlayback`, `scaleVoiceSystem`

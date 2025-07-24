@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
-import { NOTE_NAMES, type NoteName } from "../../shared/noteFrequencies";
-import { getVoiceKeys, getScaleKeys } from "../../shared/keyTypes";
-import { KEY_TO_NOTE } from "../../shared/noteFrequencies";
-import { 
-	determineOutputScale,
-	updateKeyboardState,
-	createEmptyKeyboardState,
-	createEmptyAudioState,
-	type KeyboardState,
+import { getVoiceKeys } from "../../shared/keyTypes";
+import type { NoteName } from "../../shared/noteFrequencies";
+import {
 	type AudioState,
-	type ScaleDecisionConfig
+	createEmptyAudioState,
+	createEmptyKeyboardState,
+	determineOutputScale,
+	type KeyboardState,
+	type ScaleDecisionConfig,
+	updateKeyboardState,
 } from "../../shared/scaleDecision";
 import { useAudioContext } from "../useAudioContext";
 
@@ -25,25 +24,35 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 	onNoteStop,
 }) => {
 	const { playNote, stopNote, isSupported, error } = useAudioContext();
-	
+
 	// 純粋関数で使用する状態管理
-	const [keyboardState, setKeyboardState] = useState<KeyboardState>(createEmptyKeyboardState);
-	const [audioState, setAudioState] = useState<AudioState>(createEmptyAudioState);
-	
+	const [keyboardState, setKeyboardState] = useState<KeyboardState>(
+		createEmptyKeyboardState,
+	);
+	const [audioState, setAudioState] = useState<AudioState>(
+		createEmptyAudioState,
+	);
+
 	// 音階決定の設定
 	const config: ScaleDecisionConfig = {
 		voiceKeys: getVoiceKeys(),
-		scaleKeyMapping: KEY_TO_NOTE,
-		priorityStrategy: 'last-pressed'
+		priorityStrategy: "last-pressed",
 	};
 
 	// 音階決定と再生処理を行う関数
-	const processScaleDecision = (newKeyboardState: KeyboardState, newAudioState: AudioState) => {
-		const decision = determineOutputScale(newKeyboardState, newAudioState, config);
-		
+	const processScaleDecision = (
+		newKeyboardState: KeyboardState,
+		newAudioState: AudioState,
+	) => {
+		const decision = determineOutputScale(
+			newKeyboardState,
+			newAudioState,
+			config,
+		);
+
 		// デバッグログ
 		console.log(`🎵 音階決定: ${decision.reason}`);
-		
+
 		// 音の再生・停止処理
 		if (decision.shouldPlay && decision.noteToPlay) {
 			playNote(decision.noteToPlay);
@@ -55,7 +64,7 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 				onNoteStop?.();
 			}
 		}
-		
+
 		// 状態を更新
 		setKeyboardState(newKeyboardState);
 		setAudioState(decision.newAudioState);
@@ -68,21 +77,21 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 
 		const handleKeyDown = (event: KeyboardEvent) => {
 			const key = event.key.toLowerCase();
-			
+
 			if (event.repeat) return; // リピートイベントは無視
 
 			// キーボード状態を更新
 			const newKeyboardState = updateKeyboardState(
-				keyboardState, 
-				key, 
-				'press', 
+				keyboardState,
+				key,
+				"press",
 				Date.now(),
-				config
+				config,
 			);
 
 			// 現在のオーディオ状態を同期
 			const currentAudioState: AudioState = {
-				currentlyPlayingNote: currentNote || undefined
+				currentlyPlayingNote: currentNote || undefined,
 			};
 
 			// 音階決定と処理実行
@@ -96,14 +105,14 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 			const newKeyboardState = updateKeyboardState(
 				keyboardState,
 				key,
-				'release',
+				"release",
 				Date.now(),
-				config
+				config,
 			);
 
 			// 現在のオーディオ状態を同期
 			const currentAudioState: AudioState = {
-				currentlyPlayingNote: currentNote || undefined
+				currentlyPlayingNote: currentNote || undefined,
 			};
 
 			// 音階決定と処理実行
@@ -117,7 +126,17 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 			window.removeEventListener("keydown", handleKeyDown);
 			window.removeEventListener("keyup", handleKeyUp);
 		};
-	}, [playNote, stopNote, isSupported, onNotePlay, onNoteStop, currentNote, keyboardState, audioState, config]);
+	}, [
+		playNote,
+		stopNote,
+		isSupported,
+		onNotePlay,
+		onNoteStop,
+		currentNote,
+		keyboardState,
+		audioState,
+		config,
+	]);
 
 	if (!isSupported() || error?.type === "WEB_AUDIO_API_NOT_SUPPORTED") {
 		return (

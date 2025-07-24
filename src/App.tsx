@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NotePlayer } from "./audio/NotePlayer";
 import { Keyboard } from "./display/Keyboard";
 import type { NoteName } from "./shared/noteFrequencies";
+import { NOTE_NAMES } from "./shared/noteFrequencies";
 import "./App.css";
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
 
 	const handleNotePlay = (note: NoteName) => {
 		// 常に新しい音に即座に切り替え（useAudioContextで自動的に前の音は停止される）
+		console.log(`🎵 音階再生: ${NOTE_NAMES[note]} (${note})`);
 		setCurrentNote(note);
 	};
 
@@ -17,6 +19,7 @@ function App() {
 		if (stoppedNote && currentNote !== stoppedNote) {
 			return;
 		}
+		console.log("🔇 音階停止");
 		setCurrentNote(null);
 	};
 
