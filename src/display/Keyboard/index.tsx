@@ -82,16 +82,10 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 							{key.toUpperCase()}
 						</div>
 						<div style={{ fontSize: "12px", marginTop: "4px" }}>
-							bit {3 - index}
+							bit {index}
 						</div>
 						<div style={{ fontSize: "10px", marginTop: "2px", opacity: 0.8 }}>
-							{3 - index === 3
-								? "8"
-								: 3 - index === 2
-									? "4"
-									: 3 - index === 1
-										? "2"
-										: "1"}
+							{1 << index}
 						</div>
 					</div>
 				))}
