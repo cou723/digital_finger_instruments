@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
-import { KEY_TO_NOTE, type NoteName } from "../../shared/noteFrequencies";
+import { NOTE_NAMES, type NoteName } from "../../shared/noteFrequencies";
+import { getVoiceKeys, getScaleKeys } from "../../shared/keyTypes";
+import { KEY_TO_NOTE } from "../../shared/noteFrequencies";
+import { 
+	determineOutputScale,
+	updateKeyboardState,
+	createEmptyKeyboardState,
+	createEmptyAudioState,
+	type KeyboardState,
+	type AudioState,
+	type ScaleDecisionConfig
+} from "../../shared/scaleDecision";
 import { useAudioContext } from "../useAudioContext";
 
 interface NotePlayerProps {
@@ -14,8 +25,41 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 	onNoteStop,
 }) => {
 	const { playNote, stopNote, isSupported, error } = useAudioContext();
-	const [isJKeyPressed, setIsJKeyPressed] = useState(false);
-	const [queuedNote, setQueuedNote] = useState<NoteName | null>(null);
+	
+	// 純粋関数で使用する状態管理
+	const [keyboardState, setKeyboardState] = useState<KeyboardState>(createEmptyKeyboardState);
+	const [audioState, setAudioState] = useState<AudioState>(createEmptyAudioState);
+	
+	// 音階決定の設定
+	const config: ScaleDecisionConfig = {
+		voiceKeys: getVoiceKeys(),
+		scaleKeyMapping: KEY_TO_NOTE,
+		priorityStrategy: 'last-pressed'
+	};
+
+	// 音階決定と再生処理を行う関数
+	const processScaleDecision = (newKeyboardState: KeyboardState, newAudioState: AudioState) => {
+		const decision = determineOutputScale(newKeyboardState, newAudioState, config);
+		
+		// デバッグログ
+		console.log(`🎵 音階決定: ${decision.reason}`);
+		
+		// 音の再生・停止処理
+		if (decision.shouldPlay && decision.noteToPlay) {
+			playNote(decision.noteToPlay);
+			onNotePlay?.(decision.noteToPlay);
+		} else {
+			// 現在再生中で、新しい決定で再生すべきでない場合は停止
+			if (newAudioState.currentlyPlayingNote && !decision.shouldPlay) {
+				stopNote();
+				onNoteStop?.();
+			}
+		}
+		
+		// 状態を更新
+		setKeyboardState(newKeyboardState);
+		setAudioState(decision.newAudioState);
+	};
 
 	useEffect(() => {
 		if (!isSupported()) {
@@ -25,50 +69,45 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 		const handleKeyDown = (event: KeyboardEvent) => {
 			const key = event.key.toLowerCase();
 			
-			// jキー処理
-			if (key === 'j' && !event.repeat) {
-				setIsJKeyPressed(true);
-				// キューされた音階があれば再生、なければ現在の音階を継続
-				const noteToPlay = queuedNote || currentNote;
-				if (noteToPlay) {
-					playNote(noteToPlay);
-					onNotePlay?.(noteToPlay);
-				}
-				return;
-			}
-			
-			const note = KEY_TO_NOTE[key];
-			if (note && !event.repeat) {
-				if (isJKeyPressed) {
-					// jキーが押されている場合は即座に音階変更
-					playNote(note);
-					onNotePlay?.(note);
-					setQueuedNote(null); // キューをクリア
-				} else {
-					// jキーが押されていない場合はキューに保存
-					setQueuedNote(note);
-				}
-			}
+			if (event.repeat) return; // リピートイベントは無視
+
+			// キーボード状態を更新
+			const newKeyboardState = updateKeyboardState(
+				keyboardState, 
+				key, 
+				'press', 
+				Date.now(),
+				config
+			);
+
+			// 現在のオーディオ状態を同期
+			const currentAudioState: AudioState = {
+				currentlyPlayingNote: currentNote || undefined
+			};
+
+			// 音階決定と処理実行
+			processScaleDecision(newKeyboardState, currentAudioState);
 		};
 
 		const handleKeyUp = (event: KeyboardEvent) => {
 			const key = event.key.toLowerCase();
-			
-			// jキー処理
-			if (key === 'j') {
-				setIsJKeyPressed(false);
-				stopNote();
-				onNoteStop?.();
-				return;
-			}
-			
-			const note = KEY_TO_NOTE[key];
-			if (note) {
-				// 音階キーが離された場合はキューから削除
-				if (queuedNote === note) {
-					setQueuedNote(null);
-				}
-			}
+
+			// キーボード状態を更新
+			const newKeyboardState = updateKeyboardState(
+				keyboardState,
+				key,
+				'release',
+				Date.now(),
+				config
+			);
+
+			// 現在のオーディオ状態を同期
+			const currentAudioState: AudioState = {
+				currentlyPlayingNote: currentNote || undefined
+			};
+
+			// 音階決定と処理実行
+			processScaleDecision(newKeyboardState, currentAudioState);
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
@@ -78,7 +117,7 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 			window.removeEventListener("keydown", handleKeyDown);
 			window.removeEventListener("keyup", handleKeyUp);
 		};
-	}, [playNote, stopNote, isSupported, onNotePlay, onNoteStop, currentNote, isJKeyPressed, queuedNote]);
+	}, [playNote, stopNote, isSupported, onNotePlay, onNoteStop, currentNote, keyboardState, audioState, config]);
 
 	if (!isSupported() || error?.type === "WEB_AUDIO_API_NOT_SUPPORTED") {
 		return (
