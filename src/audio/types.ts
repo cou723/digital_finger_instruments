@@ -1,10 +1,12 @@
+import type { NoteName } from "../shared/noteFrequencies";
+
 export type AudioError =
 	| { type: "WEB_AUDIO_API_NOT_SUPPORTED"; message: string }
 	| { type: "AUDIO_CONTEXT_CREATION_FAILED"; message: string; cause?: unknown }
 	| {
 			type: "NOTE_PLAYBACK_FAILED";
 			message: string;
-			noteName: string;
+			noteName: NoteName;
 			cause?: unknown;
 	  }
 	| { type: "NOTE_STOP_FAILED"; message: string; cause?: unknown };
@@ -18,7 +20,7 @@ export interface AudioContextState {
 }
 
 export interface AudioContextResult {
-	playNote: (note: string) => void;
+	playNote: (note: NoteName) => void;
 	stopNote: () => void;
 	isPlaying: () => boolean;
 	isSupported: () => boolean;

@@ -16,10 +16,11 @@ describe("noteFrequencies", () => {
 			expect(NOTE_FREQUENCIES.G).toBe(392.0); // ソ
 			expect(NOTE_FREQUENCIES.A).toBe(440.0); // ラ
 			expect(NOTE_FREQUENCIES.B).toBe(493.88); // シ
+			expect(NOTE_FREQUENCIES.C5).toBe(523.25); // 高いド
 		});
 
 		it("すべての音階が定義されている", () => {
-			const expectedNotes: NoteName[] = ["C", "D", "E", "F", "G", "A", "B"];
+			const expectedNotes: NoteName[] = ["C", "D", "E", "F", "G", "A", "B", "C5"];
 			expectedNotes.forEach((note) => {
 				expect(NOTE_FREQUENCIES[note]).toBeDefined();
 				expect(typeof NOTE_FREQUENCIES[note]).toBe("number");
@@ -30,18 +31,19 @@ describe("noteFrequencies", () => {
 
 	describe("KEY_TO_NOTE", () => {
 		it("正しいキーマッピングを定義している", () => {
-			expect(KEY_TO_NOTE.a).toBe("C");
-			expect(KEY_TO_NOTE.s).toBe("D");
-			expect(KEY_TO_NOTE.d).toBe("E");
-			expect(KEY_TO_NOTE.f).toBe("F");
-			expect(KEY_TO_NOTE.g).toBe("G");
-			expect(KEY_TO_NOTE.h).toBe("A");
-			expect(KEY_TO_NOTE.j).toBe("B");
+			expect(KEY_TO_NOTE.a).toBe("C");   // ド
+			expect(KEY_TO_NOTE.s).toBe("D");   // レ
+			expect(KEY_TO_NOTE.d).toBe("E");   // ミ
+			expect(KEY_TO_NOTE.f).toBe("F");   // ファ
+			expect(KEY_TO_NOTE.z).toBe("G");   // ソ
+			expect(KEY_TO_NOTE.x).toBe("A");   // ラ
+			expect(KEY_TO_NOTE.c).toBe("B");   // シ
+			expect(KEY_TO_NOTE.v).toBe("C5");  // 高いド
 		});
 
-		it("7つのキーマッピングが定義されている", () => {
+		it("8つのキーマッピングが定義されている", () => {
 			const keys = Object.keys(KEY_TO_NOTE);
-			expect(keys).toHaveLength(7);
+			expect(keys).toHaveLength(8);
 		});
 	});
 
@@ -54,6 +56,7 @@ describe("noteFrequencies", () => {
 			expect(NOTE_NAMES.G).toBe("ソ");
 			expect(NOTE_NAMES.A).toBe("ラ");
 			expect(NOTE_NAMES.B).toBe("シ");
+			expect(NOTE_NAMES.C5).toBe("ド"); // 高いド
 		});
 	});
 });

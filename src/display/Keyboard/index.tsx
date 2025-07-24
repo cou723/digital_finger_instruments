@@ -74,6 +74,38 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 					</div>
 				))}
 			</div>
+			
+			{/* jキー発音制御の表示 */}
+			<div
+				style={{
+					marginTop: "20px",
+					padding: "16px",
+					backgroundColor: "#e3f2fd",
+					borderRadius: "8px",
+					border: "2px solid #2196f3",
+				}}
+			>
+				<div
+					style={{
+						fontSize: "16px",
+						fontWeight: "bold",
+						color: "#1976d2",
+						marginBottom: "8px",
+					}}
+				>
+					J キー：発音制御
+				</div>
+				<div
+					style={{
+						fontSize: "14px",
+						color: "#333",
+						lineHeight: "1.5",
+					}}
+				>
+					Jキーを押している間のみ音が鳴ります。<br />
+					Jキーを押しながら他のキーを押すと音階が変わります。
+				</div>
+			</div>
 			<div
 				style={{
 					marginTop: "20px",
@@ -83,7 +115,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 					margin: "20px auto 0",
 				}}
 			>
-				キーボードの対応するキーを押すと音が鳴ります
+				各キーは音階に対応しています（Jキー + 音階キーで発音）
 				{currentNote && (
 					<div
 						style={{

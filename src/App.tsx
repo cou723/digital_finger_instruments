@@ -8,16 +8,13 @@ function App() {
 	const [currentNote, setCurrentNote] = useState<NoteName | null>(null);
 
 	const handleNotePlay = (note: NoteName) => {
-		console.log(`App.handleNotePlay: ${note} (prev: ${currentNote})`);
 		// 常に新しい音に即座に切り替え（useAudioContextで自動的に前の音は停止される）
 		setCurrentNote(note);
 	};
 
 	const handleNoteStop = (stoppedNote?: NoteName) => {
-		console.log(`App.handleNoteStop: ${stoppedNote} (current: ${currentNote})`);
 		// 特定の音階の停止が指定された場合、現在の音階と一致する場合のみ停止
 		if (stoppedNote && currentNote !== stoppedNote) {
-			console.log(`App.handleNoteStop: ignored (${stoppedNote} !== ${currentNote})`);
 			return;
 		}
 		setCurrentNote(null);
@@ -54,7 +51,7 @@ function App() {
 						marginBottom: "30px",
 					}}
 				>
-					キーボードを押して音を奏でましょう
+					Jキーを押しながら音階キーを押して演奏しましょう
 				</p>
 
 				<Keyboard currentNote={currentNote} />

@@ -11,7 +11,7 @@ describe("App", () => {
 	it("説明テキストが表示される", () => {
 		render(<App />);
 		expect(
-			screen.getByText("キーボードを押して音を奏でましょう"),
+			screen.getByText("Jキーを押しながら音階キーを押して演奏しましょう"),
 		).toBeInTheDocument();
 	});
 
@@ -22,7 +22,7 @@ describe("App", () => {
 
 	it("すべてのキーが表示される", () => {
 		render(<App />);
-		const keys = ["A", "S", "D", "F", "G", "H", "J"];
+		const keys = ["A", "S", "D", "F", "Z", "X", "C", "V"];
 		keys.forEach((key) => {
 			expect(screen.getByText(key)).toBeInTheDocument();
 		});
@@ -32,7 +32,9 @@ describe("App", () => {
 		render(<App />);
 		const noteNames = ["ド", "レ", "ミ", "ファ", "ソ", "ラ", "シ"];
 		noteNames.forEach((noteName) => {
-			expect(screen.getByText(noteName)).toBeInTheDocument();
+			// ドは2回表示されるので、最初の一つを確認
+			const elements = screen.getAllByText(noteName);
+			expect(elements.length).toBeGreaterThanOrEqual(1);
 		});
 	});
 });
