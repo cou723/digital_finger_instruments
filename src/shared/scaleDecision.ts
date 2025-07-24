@@ -54,8 +54,8 @@ export const BINARY_KEYS = ["a", "s", "d", "f"] as const;
 
 /**
  * キーボード状態から二進数値を計算し、対応する音階を返す
- * asdf = 左から右へ二進数として解釈
- * 例: a=on, s=off, d=on, f=off → 1010 → 10 → A5
+ * asdf = 左から右へ二進数として解釈（視覚的に左から読んだ値を反転）
+ * 例: a=on, s=off, d=on, f=off → 0101（左から） → 反転して1010 → 10 → F5
  *
  * @param pressedKeys 現在押されているキーのSet
  * @returns 対応する音階（NoteName）
@@ -63,10 +63,10 @@ export const BINARY_KEYS = ["a", "s", "d", "f"] as const;
 export function calculateBinaryScale(pressedKeys: Set<string>): NoteName {
 	let binaryValue = 0;
 
-	// 左から右へ二進数として計算 (a=最上位ビット, f=最下位ビット)
+	// 左から読んだ二進数を構築し、それを反転して通常の二進数値にする
 	BINARY_KEYS.forEach((key, index) => {
 		if (pressedKeys.has(key)) {
-			binaryValue |= 1 << (BINARY_KEYS.length - 1 - index);
+			binaryValue |= 1 << index; // indexそのままを使用（左から右への位置）
 		}
 	});
 
@@ -105,11 +105,11 @@ export function determineOutputScale(
 			// 二進数計算で音階を決定
 			const calculatedScale = calculateBinaryScale(pressedKeys);
 
-			// デバッグ用: 現在の二進数値を計算
+			// デバッグ用: 左から読んだ二進数表示と実際の値を計算
 			let binaryValue = 0;
 			BINARY_KEYS.forEach((key, index) => {
 				if (pressedKeys.has(key)) {
-					binaryValue |= 1 << (BINARY_KEYS.length - 1 - index);
+					binaryValue |= 1 << index;
 				}
 			});
 			const binaryString = BINARY_KEYS.map((key) =>

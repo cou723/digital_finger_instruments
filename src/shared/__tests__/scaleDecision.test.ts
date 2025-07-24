@@ -24,22 +24,22 @@ describe("scaleDecision", () => {
 			expect(result).toBe("C4");
 		});
 
-		it("二進数0001 (fのみon) → D4", () => {
+		it("二進数0001 (fのみon) → D5", () => {
 			const pressedKeys = new Set(["f"]);
 			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("D4");
+			expect(result).toBe("D5"); // 左から0001 → f=1<<3 → 8 → D5
 		});
 
 		it("二進数1001 (a,fがon) → E5", () => {
 			const pressedKeys = new Set(["a", "f"]);
 			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("E5"); // 1001 = 9 → E5
+			expect(result).toBe("E5"); // 左から1001 → a=1<<0, f=1<<3 → 1+8=9 → E5
 		});
 
-		it("二進数1010 (a,dがon) → F5", () => {
+		it("二進数1010 (a,dがon) → A4", () => {
 			const pressedKeys = new Set(["a", "d"]);
 			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("F5"); // 1010 = 10 → F5
+			expect(result).toBe("A4"); // 左から1010 → a=1<<0, d=1<<2 → 1+4=5 → A4
 		});
 
 		it("二進数1111 (全てon) → D6", () => {
@@ -51,7 +51,7 @@ describe("scaleDecision", () => {
 		it("関係ないキーが含まれても正しく計算", () => {
 			const pressedKeys = new Set(["a", "f", "j", "k", "l"]);
 			const result = calculateBinaryScale(pressedKeys);
-			expect(result).toBe("E5"); // a=1, f=1 → 1001 = 9 → E5
+			expect(result).toBe("E5"); // 左から1001 → a=1<<0, f=1<<3 → 1+8=9 → E5
 		});
 	});
 
@@ -98,7 +98,7 @@ describe("scaleDecision", () => {
 				expect(result.reason).toContain("0000(0)として C4");
 			});
 
-			it("二進数0001 (j+f) → D4を再生", () => {
+			it("二進数0001 (j+f) → D5を再生", () => {
 				const keyboardState: KeyboardState = {
 					pressedKeys: new Set(["j", "f"]),
 					keyPressOrder: ["j", "f"],
@@ -114,9 +114,9 @@ describe("scaleDecision", () => {
 				);
 
 				expect(result.shouldPlay).toBe(true);
-				expect(result.noteToPlay).toBe("D4");
-				expect(result.newAudioState.currentlyPlayingNote).toBe("D4");
-				expect(result.reason).toContain("二進数0001(1)から D4");
+				expect(result.noteToPlay).toBe("D5"); // 左から0001 → f=1<<3 → 8 → D5
+				expect(result.newAudioState.currentlyPlayingNote).toBe("D5");
+				expect(result.reason).toContain("二進数0001(8)から D5");
 			});
 
 			it("二進数1001 (j+a+f) → E5を再生", () => {
@@ -135,7 +135,7 @@ describe("scaleDecision", () => {
 				);
 
 				expect(result.shouldPlay).toBe(true);
-				expect(result.noteToPlay).toBe("E5"); // 1001 = 9 → E5
+				expect(result.noteToPlay).toBe("E5"); // 左から1001 → 1+8=9 → E5
 				expect(result.reason).toContain("二進数1001(9)から E5");
 			});
 
@@ -237,7 +237,7 @@ describe("scaleDecision", () => {
 			expect(result.noteToPlay).toBe("C4");
 			audioState = result.newAudioState;
 
-			// A押下 (1000 → D5)
+			// A押下 (1000 → C4)
 			keyboardState = updateKeyboardState(
 				keyboardState,
 				"a",
@@ -247,7 +247,7 @@ describe("scaleDecision", () => {
 			);
 			result = determineOutputScale(keyboardState, audioState, mockConfig);
 			expect(result.shouldPlay).toBe(true);
-			expect(result.noteToPlay).toBe("D5"); // 1000 = 8 → D5
+			expect(result.noteToPlay).toBe("D4"); // 左から1000 → a=1<<0 → 1 → D4
 			audioState = result.newAudioState;
 
 			// F押下 (1001 → E5)
@@ -260,10 +260,10 @@ describe("scaleDecision", () => {
 			);
 			result = determineOutputScale(keyboardState, audioState, mockConfig);
 			expect(result.shouldPlay).toBe(true);
-			expect(result.noteToPlay).toBe("E5"); // 1001 = 9 → E5
+			expect(result.noteToPlay).toBe("E5"); // 左から1001 → a=1<<0, f=1<<3 → 1+8=9 → E5
 			audioState = result.newAudioState;
 
-			// A解放 (0001 → D4)
+			// A解放 (0001 → D5)
 			keyboardState = updateKeyboardState(
 				keyboardState,
 				"a",
@@ -273,7 +273,7 @@ describe("scaleDecision", () => {
 			);
 			result = determineOutputScale(keyboardState, audioState, mockConfig);
 			expect(result.shouldPlay).toBe(true);
-			expect(result.noteToPlay).toBe("D4"); // 0001 = 1 → D4
+			expect(result.noteToPlay).toBe("D5"); // 左から0001 → f=1<<3 → 8 → D5
 			audioState = result.newAudioState;
 
 			// J解放 (音停止)
@@ -289,11 +289,11 @@ describe("scaleDecision", () => {
 			expect(result.newAudioState.currentlyPlayingNote).toBeUndefined();
 		});
 
-		it("実際の例: a=on, s=off, d=on, f=off → 1010 → F5", () => {
+		it("実際の例: a=on, s=off, d=on, f=off → 1010 → A4", () => {
 			let keyboardState = createEmptyKeyboardState();
 			const audioState = createEmptyAudioState();
 
-			// J + A + D押下 (1010 = 10 → F5)
+			// J + A + D押下 (1010 → A4)
 			keyboardState = updateKeyboardState(
 				keyboardState,
 				"j",
@@ -323,8 +323,8 @@ describe("scaleDecision", () => {
 			);
 
 			expect(result.shouldPlay).toBe(true);
-			expect(result.noteToPlay).toBe("F5"); // 1010 = 10 → F5
-			expect(result.reason).toContain("二進数1010(10)から F5");
+			expect(result.noteToPlay).toBe("A4"); // 左から1010 → a=1<<0, d=1<<2 → 1+4=5 → A4
+			expect(result.reason).toContain("二進数1010(5)から A4");
 		});
 	});
 

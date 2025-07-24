@@ -119,17 +119,23 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 					margin: "0 auto",
 				}}
 			>
-				{BINARY_TO_NOTE.map((note, index) => (
-					<div key={`${note}-${index}`} style={noteDisplayStyle(note)}>
-						<div style={{ fontSize: "8px", opacity: 0.8 }}>
-							{index.toString(2).padStart(4, "0")}
+				{BINARY_TO_NOTE.map((note, index) => {
+					// 左から読む形式で二進数を表示（ビットを反転）
+					const binaryString = index.toString(2).padStart(4, "0");
+					const leftToRightBinary = binaryString.split("").reverse().join("");
+					
+					return (
+						<div key={`${note}-${index}`} style={noteDisplayStyle(note)}>
+							<div style={{ fontSize: "8px", opacity: 0.8 }}>
+								{leftToRightBinary}
+							</div>
+							<div style={{ fontSize: "10px", fontWeight: "bold" }}>
+								{NOTE_NAMES[note]}
+							</div>
+							<div style={{ fontSize: "8px", opacity: 0.8 }}>{note}</div>
 						</div>
-						<div style={{ fontSize: "10px", fontWeight: "bold" }}>
-							{NOTE_NAMES[note]}
-						</div>
-						<div style={{ fontSize: "8px", opacity: 0.8 }}>{note}</div>
-					</div>
-				))}
+					);
+				})}
 			</div>
 
 			{/* jキー発音制御の表示 */}
