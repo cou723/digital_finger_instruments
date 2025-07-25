@@ -311,90 +311,139 @@ export const useCalendarData = () => {
 
 ## デジタル楽器アプリケーション固有の概念
 
-### キー操作の抽象概念
+### キー操作システムの抽象概念
 
-デジタル楽器アプリケーションにおいて、キーボード操作を以下の2つの抽象的な概念で分類します：
+デジタル楽器アプリケーションは、二進数ベースの音階指定システムを採用しており、キーボード操作を以下の概念で分類します：
 
-#### 音階キー (Scale Keys)
-**定義**: 演奏する音階を指定するためのキー群  
-**対応キー**: `a`, `s`, `d`, `f`, `z`, `x`, `c`, `v`  
+#### バイナリ音階キー (Binary Scale Keys)
+**定義**: 二進数パターンで音階を指定するキー群  
+**対応キー**: `a`, `s`, `d`, `f` (4ビット二進数)  
 **操作手**: 主に左手で操作  
 **機能**: 
-- 音階を指定（ド、レ、ミ、ファ、ソ、ラ、シ、高いド）
-- 発声キーが押されていない場合はキューに保存
-- 発声キー押下中は即座に音階変更
+- 4ビット二進数パターンで0-15の値を生成
+- メジャースケール内の音階位置を指定
+- オクターブ自動展開（7音循環システム）
 
-**マッピング**:
+**バイナリマッピング**:
 ```typescript
-// 音階キーと音階の対応関係
-const SCALE_KEY_MAPPING = {
-  a: "C4",   // ド
-  s: "D4",   // レ  
-  d: "E4",   // ミ
-  f: "F4",   // ファ
-  z: "G4",   // ソ
-  x: "A4",   // ラ
-  c: "B4",   // シ
-  v: "C5",   // 高いド
+// 二進数キーパターンの例
+const BINARY_PATTERNS = {
+  "0000": 0,  // a=0, s=0, d=0, f=0 → ド (1オクターブ目)
+  "0001": 1,  // a=1, s=0, d=0, f=0 → レ (1オクターブ目) 
+  "0010": 2,  // a=0, s=1, d=0, f=0 → ミ (1オクターブ目)
+  "0111": 7,  // a=1, s=1, d=1, f=0 → ド (2オクターブ目)
+  // ...
 } as const;
 ```
 
-#### 発声キー (Voice Keys)
-**定義**: 実際の音の発声を制御するキー群  
+#### 半音修正キー (Sharp Modifier Key)
+**定義**: 音階を半音上げるための修正キー  
+**対応キー**: `スペース`  
+**操作手**: 両手どちらでも操作可能  
+**機能**:
+- 任意の音階に対して+1半音のオフセット
+- メジャースケール外の音階（黒鍵相当）への対応
+- バイナリ音階キーと組み合わせて使用
+
+#### 発声キー (Voice Key)
+**定義**: 実際の音の発声を制御するキー  
 **対応キー**: `j`  
 **操作手**: 主に右手で操作  
 **機能**:
 - 音の発声開始・停止を制御
 - 押している間のみ音が鳴る
-- キューされた音階キーがあれば即座に再生
+- バイナリパターン変更時の即座な音階切り替え
 
-**動作例**:
+### 音階決定システム
+
+**メジャースケール変換アルゴリズム**:
 ```typescript
-// 発声キーの基本動作
-if (isVoiceKeyPressed) {
-  // 音階キー押下時: 即座に音階変更
-  playNote(scaleKey);
-} else {
-  // 音階キー押下時: キューに保存（音は鳴らない）
-  queueNote(scaleKey);
+// 基本的な音階決定の流れ
+function calculateScale(binaryKeys: Set<string>, hasSharp: boolean): Note {
+  // 1. バイナリ値計算 (0-15)
+  const binaryValue = calculateBinaryFromKeys(binaryKeys);
+  
+  // 2. スケール位置決定 (0-6の循環)
+  const scalePosition = binaryValue % 7;
+  
+  // 3. オクターブ計算
+  const octave = Math.floor(binaryValue / 7);
+  
+  // 4. 半音オフセット適用
+  const sharpOffset = hasSharp ? 1 : 0;
+  
+  // 5. 最終周波数計算
+  return calculateFinalFrequency(scalePosition, octave, sharpOffset);
 }
 ```
 
-### 操作フローの概念モデル
+### 操作フローパターン
 
-**基本操作パターン**:
-1. **音階キー押下** → 音階指定（キューまたは即座再生）
-2. **発声キー押下** → 発声開始（キューがあれば再生）
-3. **音階キー変更** → 音階切り替え（発声キー押下中）
-4. **発声キー解除** → 発声停止
+**基本操作シーケンス**:
+1. **バイナリキー組み合わせ** → 0-15値生成
+2. **メジャースケール変換** → 7音循環位置決定  
+3. **オクターブ展開** → 複数オクターブ対応
+4. **半音修正** → スペースキーによる微調整
+5. **発声制御** → jキーによる音出力制御
 
 **状態管理の概念**:
-- `queuedNote`: 発声待ちの音階（音階キーで指定）
-- `currentNote`: 現在発声中の音階（発声キー + 音階キーで決定）
-- `isVoiceKeyPressed`: 発声キーの押下状態
+- `pressedKeys`: 現在押下されているキーの集合
+- `binaryValue`: バイナリキーから計算された数値 (0-15)
+- `currentFrequency`: 現在の周波数情報
+- `isVoiceActive`: 発声キーの押下状態
 
-### コード内での使用例
+### 実装パターンと命名規則
 
 ```typescript
-// ✅ 良い例 - 概念を明確に分離
-const handleScaleKeyPress = (scaleKey: string) => {
-  const note = SCALE_KEY_MAPPING[scaleKey];
-  if (isVoiceKeyPressed) {
-    playNoteImmediately(note);
-  } else {
-    queueNoteForVoice(note);
-  }
+// ✅ 推奨パターン - 純粋関数による音階計算
+const calculateBinaryFrequency = (
+  pressedKeys: Set<string>, 
+  baseNote: string = "C4"
+): FrequencyNote => {
+  // バイナリ値計算
+  const binaryValue = computeBinaryValue(pressedKeys);
+  
+  // メジャースケール変換
+  const { scalePosition, octaveOffset } = convertToMajorScale(binaryValue);
+  
+  // 半音修正
+  const sharpOffset = pressedKeys.has(" ") ? 1 : 0;
+  
+  // 周波数計算
+  return createFrequencyNote(baseNote, scalePosition, octaveOffset, sharpOffset);
 };
 
-const handleVoiceKeyPress = () => {
-  setVoiceKeyPressed(true);
-  if (queuedNote) {
-    playQueuedNote();
+// ✅ 発声制御パターン
+const handleVoiceControl = (keyboardState: KeyboardState) => {
+  if (isVoiceKeyPressed(keyboardState)) {
+    const frequency = calculateBinaryFrequency(keyboardState.pressedKeys);
+    playFrequency(frequency);
+  } else {
+    stopAudio();
   }
 };
 ```
 
 **命名規則**:
-- 音階キー関連: `scaleKey`, `noteMapping`, `queuedNote`
-- 発声キー関連: `voiceKey`, `isVoiceKeyPressed`, `voiceControl`
-- 複合概念: `notePlayback`, `scaleVoiceSystem`
+- バイナリ関連: `binaryValue`, `binaryKeys`, `calculateBinary*`
+- 音階変換: `scalePosition`, `majorScale*`, `convertTo*`
+- 周波数計算: `frequency*`, `calculateFrequency*`, `FrequencyNote`
+- 発声制御: `voice*`, `audio*`, `play*`, `stop*`
+- 状態管理: `keyboardState`, `pressedKeys`, `*State`
+
+### 設計の拡張ポイント
+
+**音階システムの拡張性**:
+- 異なる音律体系への対応（ペンタトニック、クロマチックなど）
+- カスタム音階マッピングの設定可能性
+- 基準音程の動的変更
+
+**入力システムの拡張性**:
+- より多くのバイナリビットへの拡張
+- 異なるキー配置への対応
+- MIDI入力デバイスとの統合
+
+**出力システムの拡張性**:
+- 複数音の同時発声
+- 音色・エフェクトの追加
+- 録音・再生機能の統合
