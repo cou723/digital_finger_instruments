@@ -59,10 +59,17 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 
 			// 音の再生・停止処理
 			if (decision.shouldPlay && decision.frequencyToPlay) {
-				// 周波数ベースで直接再生
+				// 周波数ベースで直接再生（エンベロープ完了時のコールバック付き）
 				playFrequency(
 					decision.frequencyToPlay.frequency,
 					`${decision.frequencyToPlay.noteName} (${decision.frequencyToPlay.displayName})`,
+					undefined, // デフォルトエンベロープ使用
+					undefined, // デフォルト自動リリース時間使用
+					() => {
+						// エンベロープ完了時にUI状態をクリア
+						console.log("🔇 エンベロープ完了: UI状態をクリア");
+						onFrequencyStop?.();
+					},
 				);
 				onFrequencyPlay?.(decision.frequencyToPlay);
 			} else {

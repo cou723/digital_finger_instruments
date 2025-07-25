@@ -104,7 +104,8 @@ export const useAudioContext = (): AudioContextResult => {
 			frequency: number,
 			debugInfo?: string,
 			envelopeConfig: EnvelopeConfig = DEFAULT_ENVELOPE,
-			autoReleaseTime = 2.0, // 2秒後に自動リリース
+			autoReleaseTime = 1.0, // 1秒後に自動リリース開始
+			onEnvelopeComplete?: () => void, // エンベロープ完了時のコールバック
 		) => {
 			if (!initializeAudioContext()) return;
 
@@ -149,6 +150,9 @@ export const useAudioContext = (): AudioContextResult => {
 						envelopeControllerRef.current = null;
 					}
 					envelopeController.dispose();
+
+					// UI状態更新のコールバック実行
+					onEnvelopeComplete?.();
 				};
 
 				// 再生開始
@@ -178,9 +182,16 @@ export const useAudioContext = (): AudioContextResult => {
 			note: NoteName,
 			envelopeConfig?: EnvelopeConfig,
 			autoReleaseTime?: number,
+			onEnvelopeComplete?: () => void,
 		) => {
 			const frequency = NOTE_FREQUENCIES[note];
-			playFrequency(frequency, note, envelopeConfig, autoReleaseTime);
+			playFrequency(
+				frequency,
+				note,
+				envelopeConfig,
+				autoReleaseTime,
+				onEnvelopeComplete,
+			);
 		},
 		[playFrequency],
 	);

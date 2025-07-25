@@ -24,9 +24,9 @@ export interface EnvelopeConfig {
  */
 export const DEFAULT_ENVELOPE: EnvelopeConfig = {
 	attack: 0.005, // 5ms - 素早いアタック
-	decay: 0.3, // 300ms - 中程度のディケイ
-	sustain: 0.2, // 20% - 低めのサステイン
-	release: 1.5, // 1.5秒 - 長めのリリース
+	decay: 0.8, // 800ms - より長いディケイ
+	sustain: 0.05, // 5% - 非常に低いサステイン（自然な減衰）
+	release: 2.0, // 2秒 - 長めのリリース
 	maxVolume: 0.3, // 30% - 適度な音量
 };
 

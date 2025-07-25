@@ -1,4 +1,5 @@
 import type { NoteName } from "../shared/noteFrequencies";
+import type { EnvelopeConfig } from "./envelopeSystem";
 
 export type AudioError =
 	| { type: "WEB_AUDIO_API_NOT_SUPPORTED"; message: string }
@@ -20,8 +21,19 @@ export interface AudioContextState {
 }
 
 export interface AudioContextResult {
-	playNote: (note: NoteName) => void;
-	playFrequency: (frequency: number, debugInfo?: string) => void;
+	playNote: (
+		note: NoteName,
+		envelopeConfig?: EnvelopeConfig,
+		autoReleaseTime?: number,
+		onEnvelopeComplete?: () => void,
+	) => void;
+	playFrequency: (
+		frequency: number,
+		debugInfo?: string,
+		envelopeConfig?: EnvelopeConfig,
+		autoReleaseTime?: number,
+		onEnvelopeComplete?: () => void,
+	) => void;
 	stopNote: () => void;
 	isPlaying: () => boolean;
 	isSupported: () => boolean;
