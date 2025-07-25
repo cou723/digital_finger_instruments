@@ -1,5 +1,4 @@
-import type { NoteName } from "./noteFrequencies";
-import { BINARY_TO_NOTE } from "./noteFrequencies";
+import { createFrequencyNote, type FrequencyNote } from "./frequencySystem";
 
 /**
  * キーボードの状態を表すインターフェース
@@ -19,8 +18,8 @@ export interface KeyboardState {
  * オーディオの状態を表すインターフェース
  */
 export interface AudioState {
-	/** 現在発声中の音階 */
-	currentlyPlayingNote?: NoteName;
+	/** 現在発声中の周波数音階 */
+	currentlyPlayingFrequency?: FrequencyNote;
 }
 
 /**
@@ -31,8 +30,8 @@ export interface ScaleDecisionConfig {
 	voiceKeys: readonly string[];
 	/** 優先戦略 */
 	priorityStrategy?: "last-pressed" | "voice-key-priority";
-	/** 0000時のデフォルト音階 */
-	defaultNote?: NoteName;
+	/** 0000時の基準音階 */
+	baseNote?: string;
 }
 
 /**
@@ -41,8 +40,8 @@ export interface ScaleDecisionConfig {
 export interface ScaleDecisionResult {
 	/** 音を再生すべきかどうか */
 	shouldPlay: boolean;
-	/** 再生すべき音階（shouldPlayがtrueの場合のみ有効） */
-	noteToPlay?: NoteName;
+	/** 再生すべき周波数音階（shouldPlayがtrueの場合のみ有効） */
+	frequencyToPlay?: FrequencyNote;
 	/** 新しいオーディオ状態 */
 	newAudioState: AudioState;
 	/** デバッグ用の決定理由 */
@@ -55,15 +54,18 @@ export interface ScaleDecisionResult {
 export const BINARY_KEYS = ["a", "s", "d", "f"] as const;
 
 /**
- * キーボード状態から二進数値を計算し、対応する音階を返す
+ * キーボード状態から二進数値を計算し、対応する周波数音階を返す
  * asdf = 左から右へ二進数として解釈（視覚的に左から読んだ値を反転）
- * 例: a=on, s=off, d=on, f=off → 0101（左から） → 反転して1010 → 10 → F5
+ * 例: a=on, s=off, d=on, f=off → 0101（左から） → 反転して1010 → 10半音上
  *
  * @param pressedKeys 現在押されているキーのSet
- * @param baseNote 0000時の基準音階（オプション、未指定時はC4）
- * @returns 対応する音階（NoteName）
+ * @param baseNote 0000時の基準音階（デフォルト: "C4"）
+ * @returns 対応する周波数音階（FrequencyNote）
  */
-export function calculateBinaryScale(pressedKeys: Set<string>, baseNote?: NoteName): NoteName {
+export function calculateBinaryFrequency(
+	pressedKeys: Set<string>,
+	baseNote: string = "C4",
+): FrequencyNote {
 	let binaryValue = 0;
 
 	// 左から読んだ二進数を構築し、それを反転して通常の二進数値にする
@@ -76,18 +78,8 @@ export function calculateBinaryScale(pressedKeys: Set<string>, baseNote?: NoteNa
 	// 0-15の範囲を保証
 	const clampedValue = Math.max(0, Math.min(15, binaryValue));
 
-	if (baseNote) {
-		// 基準音階からのオフセット計算
-		const baseIndex = BINARY_TO_NOTE.indexOf(baseNote);
-		const targetIndex = baseIndex + clampedValue;
-		
-		// 配列の範囲内に収まるようにクランプ
-		const finalIndex = Math.max(0, Math.min(BINARY_TO_NOTE.length - 1, targetIndex));
-		return BINARY_TO_NOTE[finalIndex];
-	} else {
-		// 従来の固定マッピング
-		return BINARY_TO_NOTE[clampedValue];
-	}
+	// 基準音から周波数音階を生成
+	return createFrequencyNote(baseNote, clampedValue);
 }
 
 /**
@@ -100,7 +92,7 @@ export function calculateBinaryScale(pressedKeys: Set<string>, baseNote?: NoteNa
  */
 export function determineOutputScale(
 	keyboardState: KeyboardState,
-	audioState: AudioState,
+	_audioState: AudioState,
 	config: ScaleDecisionConfig,
 ): ScaleDecisionResult {
 	const { pressedKeys } = keyboardState;
@@ -115,15 +107,18 @@ export function determineOutputScale(
 		// 二進数キー（a,s,d,f）のいずれかが押されているかチェック
 		const hasBinaryKeyPressed = BINARY_KEYS.some((key) => pressedKeys.has(key));
 
+		// 基準音を決定（設定値またはデフォルト）
+		const baseNote = config.baseNote || "C4";
+
 		if (hasBinaryKeyPressed) {
-			// 二進数計算で音階を決定（基準音階からのオフセット）
-			const calculatedScale = calculateBinaryScale(pressedKeys, config.defaultNote);
+			// 二進数計算で周波数音階を決定
+			const frequencyNote = calculateBinaryFrequency(pressedKeys, baseNote);
 
 			// デバッグ用: 左から読んだ二進数表示と実際の値を計算
-			let binaryValue = 0;
+			let _binaryValue = 0;
 			BINARY_KEYS.forEach((key, index) => {
 				if (pressedKeys.has(key)) {
-					binaryValue |= 1 << index;
+					_binaryValue |= 1 << index;
 				}
 			});
 			const binaryString = BINARY_KEYS.map((key) =>
@@ -132,22 +127,23 @@ export function determineOutputScale(
 
 			return {
 				shouldPlay: true,
-				noteToPlay: calculatedScale,
+				frequencyToPlay: frequencyNote,
 				newAudioState: {
-					currentlyPlayingNote: calculatedScale,
+					currentlyPlayingFrequency: frequencyNote,
 				},
-				reason: `発声キー押下中: 二進数${binaryString}(${binaryValue})から ${calculatedScale}`,
+				reason: `発声キー押下中: ${frequencyNote.baseNote}+${frequencyNote.semitoneOffset}半音 (${binaryString}) → ${frequencyNote.noteName} (${frequencyNote.frequency.toFixed(2)}Hz)`,
 			};
 		} else {
-			// 二進数キーが押されていない場合は設定されたデフォルト音階を使用
-			const defaultScale = config.defaultNote || BINARY_TO_NOTE[0]; // 設定またはC4
+			// 二進数キーが押されていない場合は基準音を使用（0000として扱う）
+			const frequencyNote = calculateBinaryFrequency(new Set(), baseNote);
+
 			return {
 				shouldPlay: true,
-				noteToPlay: defaultScale,
+				frequencyToPlay: frequencyNote,
 				newAudioState: {
-					currentlyPlayingNote: defaultScale,
+					currentlyPlayingFrequency: frequencyNote,
 				},
-				reason: `発声キー押下中: 二進数キー未押下のため0000として ${defaultScale}`,
+				reason: `発声キー押下中: 二進数キー未押下のため0000として ${frequencyNote.baseNote}+0半音 → ${frequencyNote.noteName} (${frequencyNote.frequency.toFixed(2)}Hz)`,
 			};
 		}
 	} else {
@@ -155,7 +151,7 @@ export function determineOutputScale(
 		return {
 			shouldPlay: false,
 			newAudioState: {
-				currentlyPlayingNote: undefined,
+				currentlyPlayingFrequency: undefined,
 			},
 			reason: "発声キー未押下: 音を停止",
 		};
@@ -221,6 +217,26 @@ export function createEmptyKeyboardState(): KeyboardState {
  */
 export function createEmptyAudioState(): AudioState {
 	return {
-		currentlyPlayingNote: undefined,
+		currentlyPlayingFrequency: undefined,
 	};
+}
+
+/**
+ * 2つのFrequencyNoteが同じ音階かどうかを判定するヘルパー関数
+ *
+ * @param freq1 比較する周波数音階1
+ * @param freq2 比較する周波数音階2
+ * @param toleranceHz 周波数の許容誤差（Hz）
+ * @returns 同じ音階かどうか
+ */
+export function isSameFrequency(
+	freq1?: FrequencyNote,
+	freq2?: FrequencyNote,
+	toleranceHz: number = 0.1,
+): boolean {
+	if (!freq1 || !freq2) {
+		return freq1 === freq2;
+	}
+
+	return Math.abs(freq1.frequency - freq2.frequency) < toleranceHz;
 }

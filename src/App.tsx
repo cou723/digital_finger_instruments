@@ -1,28 +1,27 @@
 import { useState } from "react";
 import { NotePlayer } from "./audio/NotePlayer";
-import { Keyboard } from "./display/Keyboard";
 import { DefaultNoteSelector } from "./display/DefaultNoteSelector";
-import type { NoteName } from "./shared/noteFrequencies";
-import { NOTE_NAMES } from "./shared/noteFrequencies";
+import { Keyboard } from "./display/Keyboard";
+import type { FrequencyNote } from "./shared/frequencySystem";
+import { DEFAULT_BASE_NOTE } from "./shared/frequencySystem";
 import "./App.css";
 
 function App() {
-	const [currentNote, setCurrentNote] = useState<NoteName | null>(null);
-	const [defaultNote, setDefaultNote] = useState<NoteName>("C4");
+	const [currentFrequency, setCurrentFrequency] =
+		useState<FrequencyNote | null>(null);
+	const [baseNote, setBaseNote] = useState<string>(DEFAULT_BASE_NOTE);
 
-	const handleNotePlay = (note: NoteName) => {
+	const handleFrequencyPlay = (frequency: FrequencyNote) => {
 		// 常に新しい音に即座に切り替え（useAudioContextで自動的に前の音は停止される）
-		console.log(`🎵 音階再生: ${NOTE_NAMES[note]} (${note})`);
-		setCurrentNote(note);
+		console.log(
+			`🎵 音階再生: ${frequency.displayName} (${frequency.noteName}) ${frequency.frequency.toFixed(2)}Hz`,
+		);
+		setCurrentFrequency(frequency);
 	};
 
-	const handleNoteStop = (stoppedNote?: NoteName) => {
-		// 特定の音階の停止が指定された場合、現在の音階と一致する場合のみ停止
-		if (stoppedNote && currentNote !== stoppedNote) {
-			return;
-		}
+	const handleFrequencyStop = () => {
 		console.log("🔇 音階停止");
-		setCurrentNote(null);
+		setCurrentFrequency(null);
 	};
 
 	return (
@@ -59,18 +58,18 @@ function App() {
 					Jキーを押しながら音階キーを押して演奏しましょう
 				</p>
 
-				<Keyboard currentNote={currentNote} />
+				<Keyboard currentFrequency={currentFrequency} baseNote={baseNote} />
 
 				<DefaultNoteSelector
-					defaultNote={defaultNote}
-					onDefaultNoteChange={setDefaultNote}
+					baseNote={baseNote}
+					onBaseNoteChange={setBaseNote}
 				/>
 
 				<NotePlayer
-					currentNote={currentNote}
-					onNotePlay={handleNotePlay}
-					onNoteStop={handleNoteStop}
-					defaultNote={defaultNote}
+					currentFrequency={currentFrequency}
+					onFrequencyPlay={handleFrequencyPlay}
+					onFrequencyStop={handleFrequencyStop}
+					baseNote={baseNote}
 				/>
 			</div>
 		</div>

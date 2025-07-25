@@ -1,13 +1,16 @@
-import { BINARY_TO_NOTE, NOTE_NAMES, type NoteName } from "../../shared/noteFrequencies";
+import {
+	AVAILABLE_BASE_NOTES,
+	getDisplayName,
+} from "../../shared/frequencySystem";
 
 interface DefaultNoteSelectorProps {
-	defaultNote: NoteName;
-	onDefaultNoteChange: (note: NoteName) => void;
+	baseNote: string;
+	onBaseNoteChange: (baseNote: string) => void;
 }
 
 export const DefaultNoteSelector: React.FC<DefaultNoteSelectorProps> = ({
-	defaultNote,
-	onDefaultNoteChange,
+	baseNote,
+	onBaseNoteChange,
 }) => {
 	return (
 		<div
@@ -27,7 +30,7 @@ export const DefaultNoteSelector: React.FC<DefaultNoteSelectorProps> = ({
 					marginBottom: "12px",
 				}}
 			>
-				0000時の音階設定
+				0000時の基準音設定
 			</div>
 			<div
 				style={{
@@ -36,24 +39,25 @@ export const DefaultNoteSelector: React.FC<DefaultNoteSelectorProps> = ({
 					marginBottom: "12px",
 				}}
 			>
-				二進数キーを何も押さない（0000）時に鳴る音階を選択してください：
+				二進数キーを何も押さない（0000）時に鳴る基準音を選択してください：
 			</div>
 			<select
-				value={defaultNote}
-				onChange={(e) => onDefaultNoteChange(e.target.value as NoteName)}
+				value={baseNote}
+				onChange={(e) => onBaseNoteChange(e.target.value)}
 				style={{
 					padding: "8px 12px",
 					fontSize: "14px",
 					borderRadius: "4px",
 					border: "1px solid #ddd",
 					backgroundColor: "white",
+					color: "#333",
 					cursor: "pointer",
 					minWidth: "120px",
 				}}
 			>
-				{BINARY_TO_NOTE.map((note) => (
+				{AVAILABLE_BASE_NOTES.map((note) => (
 					<option key={note} value={note}>
-						{NOTE_NAMES[note]} ({note})
+						{getDisplayName(note)} ({note})
 					</option>
 				))}
 			</select>
@@ -64,7 +68,17 @@ export const DefaultNoteSelector: React.FC<DefaultNoteSelectorProps> = ({
 					color: "#666",
 				}}
 			>
-				現在の設定: {NOTE_NAMES[defaultNote]} ({defaultNote})
+				現在の設定: {getDisplayName(baseNote)} ({baseNote})
+			</div>
+			<div
+				style={{
+					marginTop: "8px",
+					fontSize: "12px",
+					color: "#666",
+					fontStyle: "italic",
+				}}
+			>
+				※ 基準音を変更すると、0-15の全ての音階が相対的にシフトされます
 			</div>
 		</div>
 	);

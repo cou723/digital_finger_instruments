@@ -1,15 +1,19 @@
+import type { FrequencyNote } from "../../shared/frequencySystem";
 import {
-	BINARY_TO_NOTE,
-	NOTE_NAMES,
-	type NoteName,
-} from "../../shared/noteFrequencies";
-import { BINARY_KEYS } from "../../shared/scaleDecision";
+	BINARY_KEYS,
+	calculateBinaryFrequency,
+	isSameFrequency,
+} from "../../shared/scaleDecision";
 
 interface KeyboardProps {
-	currentNote?: NoteName | null;
+	currentFrequency?: FrequencyNote | null;
+	baseNote?: string;
 }
 
-export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
+export const Keyboard: React.FC<KeyboardProps> = ({
+	currentFrequency,
+	baseNote = "C4",
+}) => {
 	const keyStyle = (_key: string, _bitPosition: number) => ({
 		display: "inline-flex",
 		flexDirection: "column" as const,
@@ -30,7 +34,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 		color: "#333",
 	});
 
-	const noteDisplayStyle = (note: NoteName) => ({
+	const noteDisplayStyle = (frequency: FrequencyNote) => ({
 		display: "inline-flex",
 		flexDirection: "column" as const,
 		alignItems: "center",
@@ -39,12 +43,16 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 		height: "60px",
 		margin: "2px",
 		padding: "4px",
-		backgroundColor: currentNote === note ? "#4CAF50" : "#f5f5f5",
+		backgroundColor: isSameFrequency(currentFrequency || undefined, frequency)
+			? "#4CAF50"
+			: "#f5f5f5",
 		border: "1px solid #ddd",
 		borderRadius: "6px",
 		fontSize: "10px",
 		fontWeight: "bold",
-		color: currentNote === note ? "white" : "#333",
+		color: isSameFrequency(currentFrequency || undefined, frequency)
+			? "white"
+			: "#333",
 		transition: "all 0.1s ease",
 	});
 
@@ -101,7 +109,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 					color: "#333",
 				}}
 			>
-				音階一覧 (0-15 → C4-D6)
+				音階一覧 (0-15 → {baseNote}から+15半音)
 			</div>
 			<div
 				style={{
@@ -113,20 +121,41 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 					margin: "0 auto",
 				}}
 			>
-				{BINARY_TO_NOTE.map((note, index) => {
+				{Array.from({ length: 16 }, (_, index) => {
+					// 各二進数値に対して、設定された基準音階からの周波数計算
+					const binaryKeys = new Set<string>();
+
+					// indexから対応するキーの組み合わせを逆算
+					BINARY_KEYS.forEach((key, keyIndex) => {
+						if (index & (1 << keyIndex)) {
+							binaryKeys.add(key);
+						}
+					});
+
+					// 周波数音階を計算
+					const frequencyNote = calculateBinaryFrequency(binaryKeys, baseNote);
+
 					// 左から読む形式で二進数を表示（ビットを反転）
 					const binaryString = index.toString(2).padStart(4, "0");
 					const leftToRightBinary = binaryString.split("").reverse().join("");
-					
+
 					return (
-						<div key={`${note}-${index}`} style={noteDisplayStyle(note)}>
+						<div
+							key={`note-${frequencyNote.noteName}-${index}`}
+							style={noteDisplayStyle(frequencyNote)}
+						>
 							<div style={{ fontSize: "8px", opacity: 0.8 }}>
 								{leftToRightBinary}
 							</div>
-							<div style={{ fontSize: "10px", fontWeight: "bold" }}>
-								{NOTE_NAMES[note]}
+							<div style={{ fontSize: "9px", fontWeight: "bold" }}>
+								{frequencyNote.noteName}
 							</div>
-							<div style={{ fontSize: "8px", opacity: 0.8 }}>{note}</div>
+							<div style={{ fontSize: "8px", opacity: 0.8 }}>
+								{frequencyNote.displayName}
+							</div>
+							<div style={{ fontSize: "7px", opacity: 0.6 }}>
+								{frequencyNote.frequency.toFixed(1)}Hz
+							</div>
 						</div>
 					);
 				})}
@@ -175,7 +204,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 			>
 				A,S,D,Fキーを二進数として組み合わせて音階を指定します（Jキー +
 				二進数キーで発音）
-				{currentNote && (
+				{currentFrequency && (
 					<div
 						style={{
 							marginTop: "10px",
@@ -184,7 +213,8 @@ export const Keyboard: React.FC<KeyboardProps> = ({ currentNote }) => {
 							fontWeight: "bold",
 						}}
 					>
-						再生中: {NOTE_NAMES[currentNote]} ({currentNote})
+						再生中: {currentFrequency.displayName} ({currentFrequency.noteName}){" "}
+						{currentFrequency.frequency.toFixed(2)}Hz
 					</div>
 				)}
 			</div>

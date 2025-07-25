@@ -28,13 +28,57 @@ describe("App", () => {
 		});
 	});
 
-	it("日本語の音階名が表示される", () => {
+	it("周波数ベース音階システムが正煎動作する", () => {
 		render(<App />);
-		const noteNames = ["ド", "レ", "ミ", "ファ", "ソ", "ラ", "シ"];
-		noteNames.forEach((noteName) => {
-			// ドは2回表示されるので、最初の一つを確認
-			const elements = screen.getAllByText(noteName);
-			expect(elements.length).toBeGreaterThanOrEqual(1);
-		});
+
+		// 基準音設定セクションの確認
+		expect(screen.getByText("0000時の基準音設定")).toBeInTheDocument();
+
+		// 音階一覧のタイトル確認（基準音C4）
+		expect(screen.getByText(/C4から\+15半音/)).toBeInTheDocument();
+
+		// 音階表示の確認（C4から開始）
+		expect(screen.getByText("C4")).toBeInTheDocument();
+		expect(screen.getByText("C#4")).toBeInTheDocument();
+
+		// 日本語音階名の確認（複数存在する場合があるのでgetAllByTextを使用）
+		expect(screen.getAllByText("ド").length).toBeGreaterThan(0);
+		expect(screen.getAllByText("ド#").length).toBeGreaterThan(0);
+
+		// 周波数表示の確認
+		expect(screen.getByText("261.6Hz")).toBeInTheDocument(); // C4の周波数
+	});
+
+	it("基準音選択機能が表示される", () => {
+		render(<App />);
+
+		// 基準音選択のラベル
+		expect(
+			screen.getByText(
+				"二進数キーを何も押さない（0000）時に鳴る基準音を選択してください：",
+			),
+		).toBeInTheDocument();
+
+		// 現在の設定表示
+		expect(screen.getByText(/現在の設定: ド \(C4\)/)).toBeInTheDocument();
+
+		// 説明テキスト
+		expect(
+			screen.getByText(
+				"※ 基準音を変更すると、0-15の全ての音階が相対的にシフトされます",
+			),
+		).toBeInTheDocument();
+	});
+
+	it("発音制御の説明が表示される", () => {
+		render(<App />);
+
+		expect(screen.getByText("J キー：発音制御")).toBeInTheDocument();
+		expect(
+			screen.getByText(/Jキーを押している間のみ音が鳴ります/),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText(/Jキー \+ A,S,D,Fキーの組み合わせで音階を決定します/),
+		).toBeInTheDocument();
 	});
 });

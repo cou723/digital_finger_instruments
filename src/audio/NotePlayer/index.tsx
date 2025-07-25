@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FrequencyNote } from "../../shared/frequencySystem";
 import { getVoiceKeys } from "../../shared/keyTypes";
-import type { NoteName } from "../../shared/noteFrequencies";
 import {
 	type AudioState,
 	createEmptyAudioState,
@@ -13,65 +13,72 @@ import {
 import { useAudioContext } from "../useAudioContext";
 
 interface NotePlayerProps {
-	currentNote?: NoteName | null;
-	onNotePlay?: (note: NoteName) => void;
-	onNoteStop?: (note?: NoteName) => void;
-	defaultNote?: NoteName;
+	currentFrequency?: FrequencyNote | null;
+	onFrequencyPlay?: (frequency: FrequencyNote) => void;
+	onFrequencyStop?: () => void;
+	baseNote?: string;
 }
 
 export const NotePlayer: React.FC<NotePlayerProps> = ({
-	currentNote,
-	onNotePlay,
-	onNoteStop,
-	defaultNote,
+	currentFrequency,
+	onFrequencyPlay,
+	onFrequencyStop,
+	baseNote,
 }) => {
-	const { playNote, stopNote, isSupported, error } = useAudioContext();
+	const { playFrequency, stopNote, isSupported, error } = useAudioContext();
 
 	// 純粋関数で使用する状態管理
 	const [keyboardState, setKeyboardState] = useState<KeyboardState>(
 		createEmptyKeyboardState,
 	);
-	const [audioState, setAudioState] = useState<AudioState>(
+	const [_audioState, setAudioState] = useState<AudioState>(
 		createEmptyAudioState,
 	);
 
 	// 音階決定の設定
-	const config: ScaleDecisionConfig = {
-		voiceKeys: getVoiceKeys(),
-		priorityStrategy: "last-pressed",
-		defaultNote: defaultNote,
-	};
+	const config: ScaleDecisionConfig = useMemo(
+		() => ({
+			voiceKeys: getVoiceKeys(),
+			priorityStrategy: "last-pressed",
+			baseNote: baseNote,
+		}),
+		[baseNote],
+	);
 
 	// 音階決定と再生処理を行う関数
-	const processScaleDecision = (
-		newKeyboardState: KeyboardState,
-		newAudioState: AudioState,
-	) => {
-		const decision = determineOutputScale(
-			newKeyboardState,
-			newAudioState,
-			config,
-		);
+	const processScaleDecision = useCallback(
+		(newKeyboardState: KeyboardState, newAudioState: AudioState) => {
+			const decision = determineOutputScale(
+				newKeyboardState,
+				newAudioState,
+				config,
+			);
 
-		// デバッグログ
-		console.log(`🎵 音階決定: ${decision.reason}`);
+			// デバッグログ
+			console.log(`🎵 音階決定: ${decision.reason}`);
 
-		// 音の再生・停止処理
-		if (decision.shouldPlay && decision.noteToPlay) {
-			playNote(decision.noteToPlay);
-			onNotePlay?.(decision.noteToPlay);
-		} else {
-			// 現在再生中で、新しい決定で再生すべきでない場合は停止
-			if (newAudioState.currentlyPlayingNote && !decision.shouldPlay) {
-				stopNote();
-				onNoteStop?.();
+			// 音の再生・停止処理
+			if (decision.shouldPlay && decision.frequencyToPlay) {
+				// 周波数ベースで直接再生
+				playFrequency(
+					decision.frequencyToPlay.frequency,
+					`${decision.frequencyToPlay.noteName} (${decision.frequencyToPlay.displayName})`,
+				);
+				onFrequencyPlay?.(decision.frequencyToPlay);
+			} else {
+				// 現在再生中で、新しい決定で再生すべきでない場合は停止
+				if (newAudioState.currentlyPlayingFrequency && !decision.shouldPlay) {
+					stopNote();
+					onFrequencyStop?.();
+				}
 			}
-		}
 
-		// 状態を更新
-		setKeyboardState(newKeyboardState);
-		setAudioState(decision.newAudioState);
-	};
+			// 状態を更新
+			setKeyboardState(newKeyboardState);
+			setAudioState(decision.newAudioState);
+		},
+		[config, playFrequency, stopNote, onFrequencyPlay, onFrequencyStop],
+	);
 
 	useEffect(() => {
 		if (!isSupported()) {
@@ -94,7 +101,7 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 
 			// 現在のオーディオ状態を同期
 			const currentAudioState: AudioState = {
-				currentlyPlayingNote: currentNote || undefined,
+				currentlyPlayingFrequency: currentFrequency || undefined,
 			};
 
 			// 音階決定と処理実行
@@ -115,7 +122,7 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 
 			// 現在のオーディオ状態を同期
 			const currentAudioState: AudioState = {
-				currentlyPlayingNote: currentNote || undefined,
+				currentlyPlayingFrequency: currentFrequency || undefined,
 			};
 
 			// 音階決定と処理実行
@@ -130,16 +137,11 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 			window.removeEventListener("keyup", handleKeyUp);
 		};
 	}, [
-		playNote,
-		stopNote,
 		isSupported,
-		onNotePlay,
-		onNoteStop,
-		currentNote,
+		currentFrequency,
 		keyboardState,
-		audioState,
-		config,
-		defaultNote,
+		config, // 音階決定と処理実行
+		processScaleDecision,
 	]);
 
 	if (!isSupported() || error?.type === "WEB_AUDIO_API_NOT_SUPPORTED") {

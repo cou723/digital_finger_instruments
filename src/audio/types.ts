@@ -6,7 +6,7 @@ export type AudioError =
 	| {
 			type: "NOTE_PLAYBACK_FAILED";
 			message: string;
-			noteName: NoteName;
+			noteName?: NoteName;
 			cause?: unknown;
 	  }
 	| { type: "NOTE_STOP_FAILED"; message: string; cause?: unknown };
@@ -21,6 +21,7 @@ export interface AudioContextState {
 
 export interface AudioContextResult {
 	playNote: (note: NoteName) => void;
+	playFrequency: (frequency: number, debugInfo?: string) => void;
 	stopNote: () => void;
 	isPlaying: () => boolean;
 	isSupported: () => boolean;

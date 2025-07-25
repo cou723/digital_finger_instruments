@@ -94,8 +94,8 @@ export const useAudioContext = (): AudioContextResult => {
 		}
 	}, []);
 
-	const playNote = useCallback(
-		(note: NoteName) => {
+	const playFrequency = useCallback(
+		(frequency: number, debugInfo?: string) => {
 			if (!initializeAudioContext()) return;
 
 			// 既存の音を停止
@@ -103,7 +103,6 @@ export const useAudioContext = (): AudioContextResult => {
 
 			if (!audioContextRef.current) return;
 			const audioContext = audioContextRef.current;
-			const frequency = NOTE_FREQUENCIES[note];
 
 			try {
 				// オシレーターとゲインノードを作成
@@ -136,14 +135,21 @@ export const useAudioContext = (): AudioContextResult => {
 			} catch (cause) {
 				const audioError: AudioError = {
 					type: "NOTE_PLAYBACK_FAILED",
-					message: `音階 ${note} の再生に失敗しました。`,
-					noteName: note,
+					message: `周波数 ${frequency}Hz${debugInfo ? ` (${debugInfo})` : ""} の再生に失敗しました。`,
 					cause,
 				};
 				setError(audioError);
 			}
 		},
 		[initializeAudioContext, stopNote],
+	);
+
+	const playNote = useCallback(
+		(note: NoteName) => {
+			const frequency = NOTE_FREQUENCIES[note];
+			playFrequency(frequency, note);
+		},
+		[playFrequency],
 	);
 
 	const isPlaying = useCallback(() => {
@@ -162,6 +168,7 @@ export const useAudioContext = (): AudioContextResult => {
 
 	return {
 		playNote,
+		playFrequency,
 		stopNote,
 		isPlaying,
 		isSupported,

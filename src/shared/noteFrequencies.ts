@@ -90,3 +90,50 @@ export const BINARY_TO_NOTE: readonly NoteName[] = [
 	"C6",
 	"D6",
 ] as const;
+
+/**
+ * 基準周波数から半音上下の周波数を計算するヘルパー関数
+ * 12音律: frequency * 2^(semitones/12)
+ *
+ * @param baseFrequency 基準周波数 (Hz)
+ * @param semitones 半音の数（正の値で上行、負の値で下行）
+ * @returns 計算された周波数 (Hz)
+ */
+export function calculateFrequencyFromSemitones(
+	baseFrequency: number,
+	semitones: number,
+): number {
+	return baseFrequency * 2 ** (semitones / 12);
+}
+
+/**
+ * ノート名から周波数を取得する関数
+ * 固定のNOTE_FREQUENCIESにないノートの場合はundefinedを返す
+ *
+ * @param noteName ノート名
+ * @returns 周波数 (Hz) またはundefined
+ */
+export function getFrequencyFromNoteName(
+	noteName: NoteName,
+): number | undefined {
+	return NOTE_FREQUENCIES[noteName];
+}
+
+/**
+ * 基準ノートから相対的なオフセットで周波数を計算する関数
+ *
+ * @param baseNote 基準ノート名
+ * @param semitoneOffset 半音オフセット（0-15の二進数値）
+ * @returns 計算された周波数 (Hz)
+ */
+export function calculateRelativeFrequency(
+	baseNote: NoteName,
+	semitoneOffset: number,
+): number {
+	const baseFrequency = getFrequencyFromNoteName(baseNote);
+	if (baseFrequency === undefined) {
+		throw new Error(`Unknown note: ${baseNote}`);
+	}
+
+	return calculateFrequencyFromSemitones(baseFrequency, semitoneOffset);
+}
