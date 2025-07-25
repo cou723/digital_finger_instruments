@@ -117,7 +117,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 					justifyContent: "center",
 					flexWrap: "wrap",
 					gap: "2px",
-					maxWidth: "600px",
+					maxWidth: "900px",
 					margin: "0 auto",
 				}}
 			>
@@ -161,38 +161,6 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 				})}
 			</div>
 
-			{/* jキー発音制御の表示 */}
-			<div
-				style={{
-					marginTop: "20px",
-					padding: "16px",
-					backgroundColor: "#e3f2fd",
-					borderRadius: "8px",
-					border: "2px solid #2196f3",
-				}}
-			>
-				<div
-					style={{
-						fontSize: "16px",
-						fontWeight: "bold",
-						color: "#1976d2",
-						marginBottom: "8px",
-					}}
-				>
-					J キー：発音制御
-				</div>
-				<div
-					style={{
-						fontSize: "14px",
-						color: "#333",
-						lineHeight: "1.5",
-					}}
-				>
-					Jキーを押している間のみ音が鳴ります。
-					<br />
-					Jキー + A,S,D,Fキーの組み合わせで音階を決定します（二進数）。
-				</div>
-			</div>
 			<div
 				style={{
 					marginTop: "20px",
@@ -203,7 +171,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 				}}
 			>
 				A,S,D,Fキーを二進数として組み合わせて音階を指定します（Jキー +
-				二進数キーで発音）
+				音階キーで発音）
 				{currentFrequency && (
 					<div
 						style={{
