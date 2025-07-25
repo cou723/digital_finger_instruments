@@ -4,7 +4,7 @@ import { KEY_TO_NOTE, type NoteName } from "./noteFrequencies";
  * 発声キーの定義
  * 音の発声を制御するキー群
  */
-const VOICE_KEYS = ["j"] as const;
+const VOICE_KEYS = ["j", "k", "l"] as const;
 
 /**
  * 指定されたキーが発声キーかどうかを判定する

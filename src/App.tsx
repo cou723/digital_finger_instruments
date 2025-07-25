@@ -56,7 +56,8 @@ function App() {
 						marginBottom: "30px",
 					}}
 				>
-					Jキーを押しながら音階キーを押して演奏しましょう
+					発声キー（J,K,L）を押しながら音階キー（A,S,D,F +
+					スペース）を押して演奏しましょう
 				</p>
 
 				<Keyboard currentFrequency={currentFrequency} baseNote={baseNote} />

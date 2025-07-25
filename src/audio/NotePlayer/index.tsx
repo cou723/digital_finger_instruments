@@ -111,7 +111,8 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 		const handleKeyUp = (event: KeyboardEvent) => {
 			const key = event.key.toLowerCase();
 
-			// キーボード状態を更新
+			// エンベロープシステムではキー離し時に音を停止しない
+			// 音は自動的にフェードアウトするため、キー状態の更新のみ実行
 			const newKeyboardState = updateKeyboardState(
 				keyboardState,
 				key,
@@ -120,13 +121,8 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 				config,
 			);
 
-			// 現在のオーディオ状態を同期
-			const currentAudioState: AudioState = {
-				currentlyPlayingFrequency: currentFrequency || undefined,
-			};
-
-			// 音階決定と処理実行
-			processScaleDecision(newKeyboardState, currentAudioState);
+			// 状態更新のみ（音の停止は行わない）
+			setKeyboardState(newKeyboardState);
 		};
 
 		window.addEventListener("keydown", handleKeyDown);

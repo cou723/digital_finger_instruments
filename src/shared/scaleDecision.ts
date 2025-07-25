@@ -94,9 +94,13 @@ export function calculateBinaryFrequency(
 	// オクターブオフセットを計算
 	const octaveOffset = Math.floor(clampedValue / 7) * 12;
 
-	// メジャースケール間隔 + オクターブオフセット
+	// スペースキーが押されているかチェック（半音上）
+	const hasSpaceKey = pressedKeys.has(" ");
+	const sharpOffset = hasSpaceKey ? 1 : 0;
+
+	// メジャースケール間隔 + オクターブオフセット + 半音上オフセット
 	const totalSemitoneOffset =
-		MAJOR_SCALE_INTERVALS[scalePosition] + octaveOffset;
+		MAJOR_SCALE_INTERVALS[scalePosition] + octaveOffset + sharpOffset;
 
 	// 基準音から周波数音階を生成
 	return createFrequencyNote(baseNote, totalSemitoneOffset);
@@ -149,6 +153,8 @@ export function determineOutputScale(
 			const scalePosition = binaryValue % 7;
 			const octave = Math.floor(binaryValue / 7) + 1;
 			const scaleNames = ["ド", "レ", "ミ", "ファ", "ソ", "ラ", "シ"];
+			const hasSpaceKey = pressedKeys.has(" ");
+			const sharpText = hasSpaceKey ? "#" : "";
 
 			return {
 				shouldPlay: true,
@@ -156,11 +162,14 @@ export function determineOutputScale(
 				newAudioState: {
 					currentlyPlayingFrequency: frequencyNote,
 				},
-				reason: `発声キー押下中: メジャースケール${octave}オクターブ目の${scaleNames[scalePosition]} (${binaryString}) → ${frequencyNote.noteName} (${frequencyNote.frequency.toFixed(2)}Hz)`,
+				reason: `発声キー押下中: メジャースケール${octave}オクターブ目の${scaleNames[scalePosition]}${sharpText} (${binaryString}) → ${frequencyNote.noteName} (${frequencyNote.frequency.toFixed(2)}Hz)`,
 			};
 		} else {
 			// 音階キーが押されていない場合は基準音を使用（0000として扱う、メジャースケール1オクターブ目のド）
-			const frequencyNote = calculateBinaryFrequency(new Set(), baseNote);
+			// スペースキーのみが押されている可能性もあるため、pressedKeysをそのまま渡す
+			const frequencyNote = calculateBinaryFrequency(pressedKeys, baseNote);
+			const hasSpaceKey = pressedKeys.has(" ");
+			const sharpText = hasSpaceKey ? "#" : "";
 
 			return {
 				shouldPlay: true,
@@ -168,7 +177,7 @@ export function determineOutputScale(
 				newAudioState: {
 					currentlyPlayingFrequency: frequencyNote,
 				},
-				reason: `発声キー押下中: 音階キー未押下のため0000として メジャースケール1オクターブ目のド → ${frequencyNote.noteName} (${frequencyNote.frequency.toFixed(2)}Hz)`,
+				reason: `発声キー押下中: 音階キー未押下のため0000として メジャースケール1オクターブ目のド${sharpText} → ${frequencyNote.noteName} (${frequencyNote.frequency.toFixed(2)}Hz)`,
 			};
 		}
 	} else {

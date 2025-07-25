@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NOTE_FREQUENCIES, type NoteName } from "../shared/noteFrequencies";
+import {
+	createEnvelopeController,
+	DEFAULT_ENVELOPE,
+	type EnvelopeConfig,
+	type EnvelopeController,
+} from "./envelopeSystem";
 import type { AudioContextResult, AudioError } from "./types";
 
 export const useAudioContext = (): AudioContextResult => {
 	const audioContextRef = useRef<AudioContext | null>(null);
 	const oscillatorRef = useRef<OscillatorNode | null>(null);
 	const gainNodeRef = useRef<GainNode | null>(null);
+	const envelopeControllerRef = useRef<EnvelopeController | null>(null);
 	const [error, setError] = useState<AudioError | null>(null);
 
 	const isSupported = useCallback(
@@ -50,29 +57,21 @@ export const useAudioContext = (): AudioContextResult => {
 	}, [isSupported]);
 
 	const stopNote = useCallback(() => {
+		// エンベロープ制御で即座に停止
+		if (envelopeControllerRef.current) {
+			envelopeControllerRef.current.stop();
+		}
+
+		// 従来の停止処理も実行（フォールバック）
 		if (
 			oscillatorRef.current &&
 			gainNodeRef.current &&
 			audioContextRef.current
 		) {
 			try {
-				const audioContext = audioContextRef.current;
-				const currentTime = audioContext.currentTime;
 				const currentOscillator = oscillatorRef.current;
-				const currentGainNode = gainNodeRef.current;
 
-				// refを即座にクリア（新しい音の再生を妨げないため）
-				oscillatorRef.current = null;
-				gainNodeRef.current = null;
-
-				// フェードアウト効果
-				currentGainNode.gain.setValueAtTime(
-					currentGainNode.gain.value,
-					currentTime,
-				);
-				currentGainNode.gain.linearRampToValueAtTime(0, currentTime + 0.01);
-
-				// 少し遅延させて停止（但しローカル変数を使用）
+				// 少し遅延させて停止
 				setTimeout(() => {
 					try {
 						currentOscillator.stop();
@@ -88,14 +87,25 @@ export const useAudioContext = (): AudioContextResult => {
 					cause,
 				};
 				setError(audioError);
-				oscillatorRef.current = null;
-				gainNodeRef.current = null;
 			}
+		}
+
+		// リソースクリア
+		oscillatorRef.current = null;
+		gainNodeRef.current = null;
+		if (envelopeControllerRef.current) {
+			envelopeControllerRef.current.dispose();
+			envelopeControllerRef.current = null;
 		}
 	}, []);
 
 	const playFrequency = useCallback(
-		(frequency: number, debugInfo?: string) => {
+		(
+			frequency: number,
+			debugInfo?: string,
+			envelopeConfig: EnvelopeConfig = DEFAULT_ENVELOPE,
+			autoReleaseTime = 2.0, // 2秒後に自動リリース
+		) => {
 			if (!initializeAudioContext()) return;
 
 			// 既存の音を停止
@@ -115,23 +125,42 @@ export const useAudioContext = (): AudioContextResult => {
 					audioContext.currentTime,
 				);
 
-				// フェードイン効果
-				gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-				gainNode.gain.linearRampToValueAtTime(
-					0.3,
-					audioContext.currentTime + 0.01,
-				);
-
 				// ノードを接続
 				oscillator.connect(gainNode);
 				gainNode.connect(audioContext.destination);
 
+				// エンベロープ制御を作成
+				const envelopeController = createEnvelopeController(
+					audioContext,
+					gainNode,
+				);
+
+				// エンベロープ完了時のコールバック設定
+				envelopeController.onReleaseComplete = () => {
+					try {
+						oscillator.stop();
+					} catch (error) {
+						console.warn("Oscillator stop warning:", error);
+					}
+					// リソースクリア
+					oscillatorRef.current = null;
+					gainNodeRef.current = null;
+					if (envelopeControllerRef.current === envelopeController) {
+						envelopeControllerRef.current = null;
+					}
+					envelopeController.dispose();
+				};
+
 				// 再生開始
 				oscillator.start();
+
+				// エンベロープ開始（自動リリース付き）
+				envelopeController.start(envelopeConfig, autoReleaseTime);
 
 				// 参照を保存
 				oscillatorRef.current = oscillator;
 				gainNodeRef.current = gainNode;
+				envelopeControllerRef.current = envelopeController;
 			} catch (cause) {
 				const audioError: AudioError = {
 					type: "NOTE_PLAYBACK_FAILED",
@@ -145,15 +174,19 @@ export const useAudioContext = (): AudioContextResult => {
 	);
 
 	const playNote = useCallback(
-		(note: NoteName) => {
+		(
+			note: NoteName,
+			envelopeConfig?: EnvelopeConfig,
+			autoReleaseTime?: number,
+		) => {
 			const frequency = NOTE_FREQUENCIES[note];
-			playFrequency(frequency, note);
+			playFrequency(frequency, note, envelopeConfig, autoReleaseTime);
 		},
 		[playFrequency],
 	);
 
 	const isPlaying = useCallback(() => {
-		return oscillatorRef.current !== null;
+		return oscillatorRef.current !== null && gainNodeRef.current !== null;
 	}, []);
 
 	// クリーンアップ
