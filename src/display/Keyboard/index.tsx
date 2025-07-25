@@ -99,7 +99,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 				))}
 			</div>
 
-			{/* 全音階の表示 */}
+			{/* メジャースケール音階の表示 */}
 			<div
 				style={{
 					textAlign: "center",
@@ -109,7 +109,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 					color: "#333",
 				}}
 			>
-				音階一覧 (0-15 → {baseNote}から+15半音)
+				メジャースケール音階一覧 ({baseNote}基準 - 2オクターブ分)
 			</div>
 			<div
 				style={{
@@ -139,21 +139,36 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 					const binaryString = index.toString(2).padStart(4, "0");
 					const leftToRightBinary = binaryString.split("").reverse().join("");
 
+					// メジャースケール情報
+					const scalePosition = index % 7;
+					const octave = Math.floor(index / 7) + 1;
+					const scaleNames = ["ド", "レ", "ミ", "ファ", "ソ", "ラ", "シ"];
+					const scaleName = scaleNames[scalePosition];
+
 					return (
 						<div
 							key={`note-${frequencyNote.noteName}-${index}`}
 							style={noteDisplayStyle(frequencyNote)}
 						>
-							<div style={{ fontSize: "8px", opacity: 0.8 }}>
+							<div style={{ fontSize: "7px", opacity: 0.6 }}>
 								{leftToRightBinary}
 							</div>
-							<div style={{ fontSize: "9px", fontWeight: "bold" }}>
+							<div
+								style={{
+									fontSize: "10px",
+									fontWeight: "bold",
+									color: "#4CAF50",
+								}}
+							>
+								{scaleName}
+							</div>
+							<div style={{ fontSize: "8px", fontWeight: "bold" }}>
 								{frequencyNote.noteName}
 							</div>
-							<div style={{ fontSize: "8px", opacity: 0.8 }}>
-								{frequencyNote.displayName}
+							<div style={{ fontSize: "6px", opacity: 0.6 }}>
+								{octave}オクターブ目
 							</div>
-							<div style={{ fontSize: "7px", opacity: 0.6 }}>
+							<div style={{ fontSize: "6px", opacity: 0.6 }}>
 								{frequencyNote.frequency.toFixed(1)}Hz
 							</div>
 						</div>
@@ -170,8 +185,11 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 					margin: "20px auto 0",
 				}}
 			>
-				A,S,D,Fキーを二進数として組み合わせて音階を指定します（Jキー +
-				音階キーで発音）
+				A,S,D,Fキーを二進数として組み合わせてメジャースケール音階を指定します（Jキー
+				+ 音階キーで発音）
+				<br />
+				0-6: 1オクターブ目（ド、レ、ミ、ファ、ソ、ラ、シ）、7-13:
+				2オクターブ目、14-15: 3オクターブ目
 				{currentFrequency && (
 					<div
 						style={{
