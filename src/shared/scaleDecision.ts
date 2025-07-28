@@ -74,7 +74,7 @@ const MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11] as const;
  */
 export function calculateBinaryFrequency(
 	pressedKeys: Set<string>,
-	baseNote: string = "C1",
+	baseNote: string = "C2",
 ): FrequencyNote {
 	let binaryValue = 0;
 
@@ -132,7 +132,7 @@ export function determineOutputScale(
 		const hasBinaryKeyPressed = BINARY_KEYS.some((key) => pressedKeys.has(key));
 
 		// 基準音を決定（設定値またはデフォルト）
-		const baseNote = config.baseNote || "C1";
+		const baseNote = config.baseNote || "C2";
 
 		if (hasBinaryKeyPressed) {
 			// メジャースケール計算で周波数音階を決定

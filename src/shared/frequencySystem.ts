@@ -213,4 +213,4 @@ export const AVAILABLE_BASE_NOTES = Object.keys(BASE_NOTE_FREQUENCIES);
 /**
  * デフォルトの基準音
  */
-export const DEFAULT_BASE_NOTE = "C1";
+export const DEFAULT_BASE_NOTE = "C2";
