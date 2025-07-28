@@ -97,6 +97,11 @@ export const NotePlayer: React.FC<NotePlayerProps> = ({
 
 			if (event.repeat) return; // リピートイベントは無視
 
+			// スペースキーの場合はブラウザデフォルト動作（スクロール）を防止
+			if (key === " ") {
+				event.preventDefault();
+			}
+
 			// キーボード状態を更新
 			const newKeyboardState = updateKeyboardState(
 				keyboardState,
