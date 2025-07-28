@@ -24,6 +24,27 @@ export interface FrequencyNote {
  * よく使用される音階の基準周波数を定義
  */
 export const BASE_NOTE_FREQUENCIES: Record<string, number> = {
+	C1: 32.7, // ド（最低音）
+	D1: 36.71, // レ
+	E1: 41.2, // ミ
+	F1: 43.65, // ファ
+	G1: 49.0, // ソ
+	A1: 55.0, // ラ
+	B1: 61.74, // シ
+	C2: 65.41, // ド
+	D2: 73.42, // レ
+	E2: 82.41, // ミ
+	F2: 87.31, // ファ
+	G2: 98.0, // ソ
+	A2: 110.0, // ラ
+	B2: 123.47, // シ
+	C3: 130.81, // ド
+	D3: 146.83, // レ
+	E3: 164.81, // ミ
+	F3: 174.61, // ファ
+	G3: 196.0, // ソ
+	A3: 220.0, // ラ
+	B3: 246.94, // シ
 	C4: 261.63, // ド（中央のC）
 	D4: 293.66, // レ
 	E4: 329.63, // ミ
@@ -192,4 +213,4 @@ export const AVAILABLE_BASE_NOTES = Object.keys(BASE_NOTE_FREQUENCIES);
 /**
  * デフォルトの基準音
  */
-export const DEFAULT_BASE_NOTE = "C4";
+export const DEFAULT_BASE_NOTE = "C1";

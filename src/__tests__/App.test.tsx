@@ -11,7 +11,9 @@ describe("App", () => {
 	it("説明テキストが表示される", () => {
 		render(<App />);
 		expect(
-			screen.getByText("Jキーを押しながら音階キーを押して演奏しましょう"),
+			screen.getByText(
+				"発声キー（J,K,L）を押しながら音階キー（A,S,D,F + スペース）を押して演奏しましょう",
+			),
 		).toBeInTheDocument();
 	});
 
@@ -34,19 +36,18 @@ describe("App", () => {
 		// 基準音設定セクションの確認
 		expect(screen.getByText("0000時の基準音設定")).toBeInTheDocument();
 
-		// 音階一覧のタイトル確認（基準音C4）
-		expect(screen.getByText(/C4から\+15半音/)).toBeInTheDocument();
+		// 音階一覧のタイトル確認（基準音C1）
+		expect(screen.getByText(/C1基準 - 2オクターブ分/)).toBeInTheDocument();
 
-		// 音階表示の確認（C4から開始）
-		expect(screen.getByText("C4")).toBeInTheDocument();
-		expect(screen.getByText("C#4")).toBeInTheDocument();
+		// 音階表示の確認（C1から開始）
+		expect(screen.getByText("C1")).toBeInTheDocument();
 
 		// 日本語音階名の確認（複数存在する場合があるのでgetAllByTextを使用）
 		expect(screen.getAllByText("ド").length).toBeGreaterThan(0);
 		expect(screen.getAllByText("ド#").length).toBeGreaterThan(0);
 
 		// 周波数表示の確認
-		expect(screen.getByText("261.6Hz")).toBeInTheDocument(); // C4の周波数
+		expect(screen.getByText("32.7Hz")).toBeInTheDocument(); // C1の周波数
 	});
 
 	it("基準音選択機能が表示される", () => {
@@ -60,7 +61,7 @@ describe("App", () => {
 		).toBeInTheDocument();
 
 		// 現在の設定表示
-		expect(screen.getByText(/現在の設定: ド \(C4\)/)).toBeInTheDocument();
+		expect(screen.getByText(/現在の設定: ド \(C1\)/)).toBeInTheDocument();
 
 		// 説明テキスト
 		expect(
